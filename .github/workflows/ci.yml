@@ -1,4 +1,4 @@
-name: CI - run all tests at once
+name: CI - run all tests
 
 on:
   pull_request:
