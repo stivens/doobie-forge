@@ -1,0 +1,40 @@
+name: CI - run all tests at once
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_call:
+
+jobs:
+  compilation:
+    name: Compile the project
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup JDK 21, Scala, SBT
+        uses: ./.github/actions/setup-scala
+      - name: Compile
+        uses: ./.github/actions/compile
+
+  unit-tests-all:
+    name: Run all tests
+    runs-on: ubuntu-latest
+    needs: [compilation]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Docker Compose UP
+        run: docker compose up -d
+      - name: Setup JDK 21, Scala, SBT
+        uses: ./.github/actions/setup-scala
+      - name: Restore compilation cache
+        uses: ./.github/actions/restore-compilation-cache
+        with:
+          key: target
+      - name: Run all tests
+        shell: bash
+        run: sbt test

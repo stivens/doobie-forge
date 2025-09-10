@@ -1,0 +1,36 @@
+name: Compile
+description: Compiles the project
+inputs:
+  cache-key:
+    description: Cache key
+    default: target
+runs:
+  using: 'composite'
+  steps:
+
+    - name: Cache lookup
+      id: compilation-cache
+      if: ${{ !contains(github.event.pull_request.body, 'ci:skip-cache') }}
+      uses: ./.github/actions/restore-compilation-cache
+      with:
+        key: ${{ inputs.cache-key }}
+
+    - name: Compile (main & tests)
+      shell: bash
+      run: sbt 'compile; Test / compile'
+
+    - name: Upload tests compilation cache
+      uses: actions/cache/save@v4
+      with:
+        path: |
+          target/scala*/*test*
+        key: ${{ inputs.cache-key }}-tests-${{ hashFiles('build.sbt') }}-${{ hashFiles('src/test/scala/**') }}
+
+    - name: Upload main compilation cache
+      uses: actions/cache/save@v4
+      with:
+        path: |
+          target/
+          project/target
+        key: ${{ inputs.cache-key }}-main-${{ hashFiles('build.sbt') }}-${{ hashFiles('src/main/scala/**') }}
+
