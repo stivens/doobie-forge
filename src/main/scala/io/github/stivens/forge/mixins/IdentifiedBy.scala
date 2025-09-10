@@ -43,27 +43,12 @@ trait IdentifiedBy[Entity, ID](
 
   // interface implementation
 
-  /** Retrieves multiple entities by their IDs.
-    *
-    * @param ids A non-empty list of IDs to look up
-    * @return A `ConnectionIO` that yields a list of entities matching the provided IDs
-    */
   final override def getManyByIds(ids: NonEmptyList[ID]): ConnectionIO[List[Entity]] =
     runSelect(frSelectColumnsFromTable ++ whereAnd(frIdsIn(ids)))
 
-  /** Retrieves multiple entities by their IDs and returns them as a map.
-    *
-    * @param ids A list of IDs to look up (can be empty)
-    * @return A `ConnectionIO` that yields a map from ID to entity for all found entities
-    */
   final def getManyByIdsToMap(ids: List[ID]): ConnectionIO[Map[ID, Entity]] =
     getManyByIds(ids).map(_.toMapBy(extractId))
 
-  /** Retrieves a single entity by its ID.
-    *
-    * @param id The ID to look up
-    * @return A `ConnectionIO` that yields an `Option[Entity]` - `Some(entity)` if found, `None` otherwise
-    */
   final override def getById(id: ID): ConnectionIO[Option[Entity]] =
     getManyByIds(NonEmptyList.one(id)).map(_.headOption)
 
