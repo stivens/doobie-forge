@@ -31,7 +31,7 @@ import scala.reflect.ClassTag
  * case class DbUser(id: Long, user_name: String, email_address: String)
  * 
  * 
- * object UserRepository extends AbstractRepository[User, DbUser](
+ * object UserRepository extends AbstractRepository.WithIntermediateType[User, DbUser](
  *   tableName = fr"users",
  *   dbMapping = new DbMapping[User, DbUser] {
  *      def dbToEntity(db: DbUser): User = 

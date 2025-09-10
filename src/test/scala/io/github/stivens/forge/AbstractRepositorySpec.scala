@@ -70,7 +70,7 @@ class AbstractRepositorySpec extends AnyFunSpec {
           Write
 
     object PersonRepository
-        extends AbstractRepository[Person, DbPerson](
+        extends AbstractRepository.WithIntermediateType[Person, DbPerson](
           tableName = fr"people",
           dbMapping = new DbMapping[Person, DbPerson] {
             def dbToEntity(db: DbPerson): Person =
