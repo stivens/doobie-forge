@@ -9,5 +9,12 @@ object CollectionUtil {
   extension [A](wrapped: List[A]) {
     def mapNelOrSucceedWith[B](f: NonEmptyList[A] => ConnectionIO[B], default: B): ConnectionIO[B] =
       catsSyntaxList(wrapped).toNel.map(f).getOrElse(connection.pure(default))
+
+    def toMapBy[B](uniquePropertySelector: A => B): Map[B, A] =
+      wrapped.groupBy(uniquePropertySelector).collect {
+        case (id, List(item)) => (id, item)
+        case (id, items) =>
+          throw new IllegalArgumentException(s"Could not hash by given property, multiple items landed in the same bucket: $id -> $items")
+      }
   }
 }
