@@ -1,0 +1,65 @@
+package io.github.stivens.forge.mixins
+
+import doobie.ConnectionIO
+import doobie.Fragment
+import doobie.Fragments.*
+import io.github.stivens.forge.AbstractView
+import io.github.stivens.forge.AsFragments
+import io.github.stivens.forge.interface.FilterOps
+
+/** A mixin trait that provides filtering capabilities for database views.
+  *
+  * This trait enables views to perform filtered queries using flexible filter types.
+  * It automatically implements the `FilterOps` interface, providing methods for
+  * retrieving filtered entities and counting filtered results.
+  *
+  * @tparam Entity The type of entity being filtered
+  * @tparam FilterType The type representing the filter criteria (must be a Product type)
+  * @param handleFilter An `AsFragments[FilterType]` instance that converts filter data to SQL fragments
+  *
+  * @example {{{
+  *   case class Movie(id: Long, name: String, director: String, rating: Double) derives Read, Write
+  *   case class MovieFilter(
+  *     name_like: Option[String] = None,
+  *     director_eq: Option[String] = None,
+  *     rating_gte: Option[Double] = None
+  *   )
+  *
+  *   object MovieRepository extends AbstractView.Simple[Movie](fr"movies")
+  *     with Filtering[Movie, MovieFilter](
+  *       handleFilter = toFragments[MovieFilter]
+  *         .usingNonEmpty(_.name_like)(name => fr"name LIKE ${%%(name)}")
+  *         .usingNonEmpty(_.director_eq)(director => fr"director = ${director}")
+  *         .usingNonEmpty(_.rating_gte)(rating => fr"rating >= ${rating}")
+  *         .compile
+  *     )
+  *
+  *   // Now you can use:
+  *   val filter = MovieFilter(director_eq = Some("Director 1"), rating_gte = Some(4.0))
+  *   val movies: List[Movie] = MovieRepository.getManyByFilter(filter).transact(transactor).unsafeRunSync()
+  *   val count: Int = MovieRepository.countByFilter(filter).transact(transactor).unsafeRunSync()
+  * }}}
+  *
+  * @note This trait requires the implementing class to extend `AbstractView[Entity, ?]`
+  */
+trait Filtering[Entity, FilterType <: Product](
+    protected val handleFilter: AsFragments[FilterType]
+) extends FilterOps[Entity, FilterType] {
+  this: AbstractView[Entity, ?] =>
+
+  final def getManyByFilter(filter: FilterType): ConnectionIO[List[Entity]] =
+    selectWith(evalFilter(filter))
+
+  final def countByFilter(filter: FilterType): ConnectionIO[Int] =
+    getCountWhere(evalFilter(filter))
+
+  final protected def evalFilter(filter: FilterType): Fragment =
+    whereAndOpt(toFilterConditions(filter))
+
+  final protected def toFilterConditions(filter: FilterType): List[Fragment] =
+    handleFilter.eval(filter).flatten
+
+  // Self-types and type aliases for convenience in subclasses
+
+  final protected type _FilterType = FilterType
+}
