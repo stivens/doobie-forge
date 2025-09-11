@@ -433,6 +433,13 @@ val upsertedUser: ConnectionIO[User] = UserRepository.upsert(user)
 Here's a complete example showing how to combine multiple mixins:
 
 ```scala
+import cats.data.NonEmptyList
+
+import doobie.*
+import doobie.Fragments.*
+import doobie.implicits.*
+import doobie.postgres.implicits.*
+
 import io.github.stivens.forge.*
 import io.github.stivens.forge.mixins.*
 
