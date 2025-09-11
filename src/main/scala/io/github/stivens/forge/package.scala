@@ -1,5 +1,7 @@
 package io.github.stivens
 
+import cats.data.NonEmptyList
+import cats.syntax.all.*
 import doobie.Fragment
 import io.github.stivens.casecomplete.CaseComplete
 import io.github.stivens.casecomplete.macros.CaseCompleteBuilder
@@ -11,4 +13,11 @@ package object forge {
   def %%(str: String): String = s"%$str%"
 
   final val DEFAUL_FSP_PAGE_SIZE = 100
+
+  extension [A <: Product, B](builderOfOptional: CaseCompleteBuilder[A, Option[B], ?]) {
+    transparent inline def usingNonEmptyList[F](
+        inline field: A => Option[List[F]]
+    )(handler: NonEmptyList[F] => B): CaseCompleteBuilder[A, Option[B], ?] =
+      builderOfOptional.using[Option[List[F]]](field)(opt => opt.flatMap(ls => ls.toNel.map(handler)))
+  }
 }
