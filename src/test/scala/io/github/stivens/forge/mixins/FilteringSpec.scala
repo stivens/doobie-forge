@@ -5,7 +5,6 @@ import doobie.*
 import doobie.implicits.*
 import doobie.postgres.implicits.*
 import io.github.stivens.forge.*
-import io.github.stivens.forge.AbstractRepository
 import io.github.stivens.forge.testsetup.transactor
 import org.scalatest.funspec.AnyFunSpec
 

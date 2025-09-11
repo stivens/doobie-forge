@@ -9,4 +9,6 @@ package object forge {
   def toFragments[A <: Product]: CaseCompleteBuilder[A, Option[Fragment], EmptyTuple] = CaseComplete.build[A, Option[Fragment]]
 
   def %%(str: String): String = s"%$str%"
+
+  final val DEFAUL_FSP_PAGE_SIZE = 100
 }
