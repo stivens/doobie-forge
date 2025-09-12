@@ -4,7 +4,6 @@ import cats.data.NonEmptyList
 import cats.syntax.all.*
 import doobie.ConnectionIO
 import doobie.Fragment
-import doobie.free.connection
 import doobie.implicits.toSqlInterpolator
 import io.github.stivens.forge.AbstractRepository
 import io.github.stivens.forge.interface.UpsertOps
@@ -36,13 +35,8 @@ trait Upsertions[Entity] extends UpsertOps[Entity] {
 
   // interface implementation
 
-  final def upsert(entity: Entity): ConnectionIO[Entity] =
-    createManyWithOnConflictDoHandle(NonEmptyList.one(entity))
-      .map(_.headOption)
-      .flatMap {
-        case Some(entity) => connection.pure(entity)
-        case None         => connection.raiseError(new IllegalStateException("Entity could not be fetched after its upsert"))
-      }
+  final def upsertMany(entities: NonEmptyList[Entity]): ConnectionIO[List[Entity]] =
+    createManyWithOnConflictDoHandle(entities)
 
   // internals
 

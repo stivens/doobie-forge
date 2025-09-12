@@ -143,16 +143,6 @@ class FSPSpec extends AnyFunSpec {
       assert(resultPage3.entities.map(_.id) == List(5, 6, 7, 8, 9, 10))
     }
 
-    it("should get filtered count") {
-      val fspRequestFilterDirector1 = FSPRequest(pageSize = Some(999), filter = Some(MovieFilter(director_eq = Some("Director 1"))))
-      val fspRequestFilterDirector2 = FSPRequest(pageSize = Some(999), filter = Some(MovieFilter(director_eq = Some("Director 2"))))
-      val resultFilterDirector1     = MovieRepository.filteredCount(fspRequestFilterDirector1).transact(transactor).unsafeRunSync()
-      val resultFilterDirector2     = MovieRepository.filteredCount(fspRequestFilterDirector2).transact(transactor).unsafeRunSync()
-
-      assert(resultFilterDirector1 == 4)
-      assert(resultFilterDirector2 == 3)
-    }
-
     it("should sort (asc)") {
       val fspRequestSortId = FSPRequest(pageSize = Some(999), sort = Some(SortDefinition(by = MovieOrder.ID, ascOrDesc = AscOrDesc.ASC)))
       val fspRequestSortName =

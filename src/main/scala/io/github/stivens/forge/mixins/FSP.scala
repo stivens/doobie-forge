@@ -1,7 +1,6 @@
 package io.github.stivens.forge.mixins
 
 import doobie.*
-import doobie.Fragments.*
 import doobie.implicits.toSqlInterpolator
 import io.github.stivens.forge.AbstractView
 import io.github.stivens.forge.DEFAUL_FSP_PAGE_SIZE
@@ -142,17 +141,5 @@ trait FSP[Entity, DbEntity <: Product, FilterType <: Product, Order, Cursor](
           nextPageCursor = None
         )
       }
-  }
-
-  /** Counts entities matching the filter criteria from the request.
-    *
-    *
-    * @param request The FSP request containing filter parameters
-    * @return A `ConnectionIO` that yields the count of entities matching the filter
-    */
-  final def filteredCount(request: FSPRequestType): ConnectionIO[Int] = {
-    val filterConditions = request.filter.map(toFilterConditions).getOrElse(List.empty)
-    if (filterConditions.isEmpty) countAll
-    else getCountWhere(whereAndOpt(filterConditions))
   }
 }

@@ -11,7 +11,6 @@ trait FSPOps[Entity, FilterType, Order, Cursor] {
   final type FSPResponseType = FSPResponse[Entity, Cursor]
 
   def fsp(request: FSPRequestType): ConnectionIO[FSPResponseType]
-  def filteredCount(request: FSPRequestType): ConnectionIO[Int]
 }
 
 object FSPOps {
