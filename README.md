@@ -46,7 +46,7 @@ import io.github.stivens.forge.*
 
 case class User(id: Long, name: String, email: String) derives Read, Write
 
-object UserRepository extends AbstractRepository.Simple[User](fr"users")
+object UserRepository extends AbstractRepository.Simple[User](tableName = fr"users")
 
 val users = List(
   User(id = 1, name = "John Doe", email = "john@example.com"),
@@ -163,7 +163,7 @@ class TypesafeFragmentsSpec extends AnyFunSpec {
 ```scala
 case class Movie(id: Long, name: String, director: String, rating: Double) derives Read
 
-object MovieView extends AbstractView.Simple[Movie](fr"movies")
+object MovieView extends AbstractView.Simple[Movie](tableName = fr"movies")
 
 // Retrieve all movies
 val movies: ConnectionIO[List[Movie]] = MovieView.getAll
@@ -182,7 +182,7 @@ val count: ConnectionIO[Int] = MovieView.countAll
 ```scala
 case class User(id: Long, name: String, email: String) derives Read, Write
 
-object UserRepository extends AbstractRepository.Simple[User](fr"users")
+object UserRepository extends AbstractRepository.Simple[User](tableName = fr"users")
 
 // Create users
 val createdManyUsers = UserRepository.createMany(users)
@@ -238,10 +238,11 @@ Mixins provide composable functionality that can be mixed into repositories and 
 Enables ID-based operations on entities.
 
 ```scala
-case class User(id: Long, name: String, email: String) derives Read, Write
+type UserId = Long
+case class User(id: UserId, name: String, email: String) derives Read, Write
 
 object UserRepository extends AbstractRepository.Simple[User](fr"users")
-  with IdentifiedBy[User, Long](_.id)
+  with IdentifiedBy[User, UserId](extractId = _.id, /* frId = fr"id" */)
 
 // Get user by ID
 val user: ConnectionIO[Option[User]] = UserRepository.getById(1)
@@ -442,33 +443,42 @@ import doobie.postgres.implicits.*
 
 import io.github.stivens.forge.*
 import io.github.stivens.forge.mixins.*
+import io.github.stivens.forge.interface.FSPOps.*
+
+import java.time.LocalDate
+
+type MovieId = Long
 
 case class Movie(
-  id: Long,
-  name: String,
-  director: String,
-  releaseDate: LocalDate,
-  rating: Double
-) derives Read, Write
+    id: MovieId,
+    name: String,
+    director: String,
+    releaseDate: LocalDate,
+    rating: Double
+) derives Read,
+      Write
+object Movie extends TypesafeFragments[Movie]
 
 case class MovieFilter(
-  name_like: Option[String] = None,
-  director_eq: Option[String] = None,
-  releaseDate_gte: Option[LocalDate] = None,
-  releaseDate_lte: Option[LocalDate] = None,
-  rating_gte: Option[Double] = None,
-  rating_lte: Option[Double] = None
+    name_like: Option[String] = None,
+    director_eq: Option[String] = None,
+    releaseDate_gte: Option[LocalDate] = None,
+    releaseDate_lte: Option[LocalDate] = None,
+    rating_gte: Option[Double] = None,
+    rating_lte: Option[Double] = None
 )
 
 case class MovieUpdate(
-  name: Option[String] = None,
-  director: Option[String] = None,
-  rating: Option[Double] = None
+    name: Option[String] = None,
+    director: Option[String] = None,
+    rating: Option[Double] = None
 )
 
 type MovieCursor = Movie
 
-enum MovieOrder { case ID, NAME, DIRECTOR, RELEASE_DATE, RATING }
+enum MovieOrder {
+  case ID, NAME, DIRECTOR, RELEASE_DATE, RATING
+}
 
 object MovieOrder {
   given OrderDefaultValue[MovieOrder] = new OrderDefaultValue[MovieOrder] {
@@ -476,47 +486,53 @@ object MovieOrder {
   }
 }
 
-object MovieRepository extends AbstractRepository.Simple[Movie](fr"movies")
-  with IdentifiedBy[Movie, Long](_.id)
-  with Filtering[Movie, MovieFilter](
-    handleFilter = toFragments[MovieFilter]
-      .usingNonEmpty(_.name_like)(name => fr"name LIKE ${%%(name)}")
-      .usingNonEmpty(_.director_eq)(director => fr"director = ${director}")
-      .usingNonEmpty(_.releaseDate_gte)(releaseDate => fr"releaseDate >= ${releaseDate}")
-      .usingNonEmpty(_.releaseDate_lte)(releaseDate => fr"releaseDate <= ${releaseDate}")
-      .usingNonEmpty(_.rating_gte)(rating => fr"rating >= ${rating}")
-      .usingNonEmpty(_.rating_lte)(rating => fr"rating <= ${rating}")
-      .compile
-  )
-  with Updates[Movie, Long, MovieUpdate](
-    handleUpdate = toFragments[MovieUpdate]
-      .usingNonEmpty(_.name)(name => fr"name = ${name}")
-      .usingNonEmpty(_.director)(director => fr"director = ${director}")
-      .usingNonEmpty(_.rating)(rating => fr"rating = ${rating}")
-      .compile
-  )
-  with Deletions[Movie, Long]
-  with FSP[Movie, Movie, MovieFilter, MovieOrder, MovieCursor](
-    evalOrder = sortDefinition =>
-      comma(
-        (sortDefinition.by match {
-          case MovieOrder.ID => NonEmptyList.of(fr"id")
-          case MovieOrder.NAME => NonEmptyList.of(fr"name", fr"id")
-          case MovieOrder.DIRECTOR => NonEmptyList.of(fr"director", fr"id")
-          case MovieOrder.RELEASE_DATE => NonEmptyList.of(fr"releaseDate", fr"id")
-          case MovieOrder.RATING => NonEmptyList.of(fr"rating", fr"id")
-        }).map(_ ++ sortDefinition.frAscOrDesc)
-      ),
-    evalCursor = (cursor, sortDefinition) =>
-      sortDefinition.by match {
-        case MovieOrder.ID => fr"id ${sortDefinition.frSortSign} ${cursor.id}"
-        case MovieOrder.NAME => fr"(name, id) ${sortDefinition.frSortSign} (${cursor.name}, ${cursor.id})"
-        case MovieOrder.DIRECTOR => fr"(director, id) ${sortDefinition.frSortSign} (${cursor.director}, ${cursor.id})"
-        case MovieOrder.RELEASE_DATE => fr"(releaseDate, id) ${sortDefinition.frSortSign} (${cursor.releaseDate}, ${cursor.id})"
-        case MovieOrder.RATING => fr"(rating, id) ${sortDefinition.frSortSign} (${cursor.rating}, ${cursor.id})"
-      },
-    constructCursor = movie => movie
-  )
+object MovieRepository
+    extends AbstractRepository.Simple[Movie](tableName = fr"movies")
+    with IdentifiedBy[Movie, MovieId](extractId = _.id, frId = fr"id")
+    with Filtering[Movie, MovieFilter](
+      handleFilter = toFragments[MovieFilter]
+        .usingNonEmpty(_.name_like)(name => fr"${Movie.f(_.name)} LIKE ${%%(name)}")
+        .usingNonEmpty(_.director_eq)(director => Movie.frEq(_.director, director))
+        .usingNonEmpty(_.releaseDate_gte)(releaseDate => Movie.frOp(_.releaseDate, fr">=", releaseDate))
+        .usingNonEmpty(_.releaseDate_lte)(releaseDate => Movie.frOp(_.releaseDate, fr"<=", releaseDate))
+        .usingNonEmpty(_.rating_gte)(rating => Movie.frOp(_.rating, fr">=", rating))
+        .usingNonEmpty(_.rating_lte)(rating => Movie.frOp(_.rating, fr"<=", rating))
+        .compile
+    )
+    with Updates[Movie, MovieId, MovieUpdate](
+      handleUpdate = toFragments[MovieUpdate]
+        .usingNonEmpty(_.name)(Movie.frSet(_.name, _))         // (name => fr"name = ${name}")
+        .usingNonEmpty(_.director)(Movie.frSet(_.director, _)) // (director => fr"director = ${director}")
+        .usingNonEmpty(_.rating)(Movie.frSet(_.rating, _))     // (rating => fr"rating = ${rating}")
+        .compile
+    )
+    with Deletions[Movie, MovieId]
+    with FSP[Movie, Movie, MovieFilter, MovieOrder, MovieCursor](
+      evalOrder = sortDefinition =>
+        comma(
+          (sortDefinition.by match {
+            case MovieOrder.ID           => NonEmptyList.of(Movie.f(_.id))                         // fr"id"
+            case MovieOrder.NAME         => NonEmptyList.of(Movie.f(_.name), Movie.f(_.id))        // fr"name", fr"id"
+            case MovieOrder.DIRECTOR     => NonEmptyList.of(Movie.f(_.director), Movie.f(_.id))    // fr"director", fr"id"
+            case MovieOrder.RELEASE_DATE => NonEmptyList.of(Movie.f(_.releaseDate), Movie.f(_.id)) // fr"releaseDate", fr"id"
+            case MovieOrder.RATING       => NonEmptyList.of(Movie.f(_.rating), Movie.f(_.id))      // fr"rating", fr"id"
+          }).map(_ ++ sortDefinition.frAscOrDesc) // fr"name ASC, id ASC" etc.
+        ),
+      evalCursor = (cursor, sortDefinition) =>
+        sortDefinition.by match {
+          case MovieOrder.ID =>
+            fr"id ${sortDefinition.frSortSign} ${cursor.id}" // fr"id (>/<) ?"
+          case MovieOrder.NAME =>
+            fr"(name, id) ${sortDefinition.frSortSign} (${cursor.name}, ${cursor.id})" // fr"(name, id) (>/<) (?, ?)"
+          case MovieOrder.DIRECTOR =>
+            fr"(director, id) ${sortDefinition.frSortSign} (${cursor.director}, ${cursor.id})" // fr"(director, id) (>/<) (?, ?)"
+          case MovieOrder.RELEASE_DATE =>
+            fr"(releaseDate, id) ${sortDefinition.frSortSign} (${cursor.releaseDate}, ${cursor.id})" // fr"(releaseDate, id) (>/<) (?, ?)"
+          case MovieOrder.RATING =>
+            fr"(rating, id) ${sortDefinition.frSortSign} (${cursor.rating}, ${cursor.id})" // fr"(rating, id) (>/<) (?, ?)"
+        },
+      constructCursor = movie => movie
+    )
 
 // Usage examples
 val movies = List(
@@ -531,7 +547,7 @@ val createdMovies = MovieRepository.createMany(movies)
 val movie = MovieRepository.getById(1)
 
 // Filter movies
-val filter = MovieFilter(director_eq = Some("Director 1"), rating_gte = Some(4.0))
+val filter         = MovieFilter(director_eq = Some("Director 1"), rating_gte = Some(4.0))
 val filteredMovies = MovieRepository.getManyByFilter(filter)
 
 // FSP query
@@ -543,11 +559,12 @@ val fspRequest = FSPRequest(
 val fspResult = MovieRepository.fsp(fspRequest)
 
 // Update movie
-val update = UpdateMovie(name = Some("Updated Movie Name"))
+val update       = MovieUpdate(name = Some("Updated Movie Name"))
 val updatedMovie = MovieRepository.update(1, update)
 
 // Delete movie
 val deletedMovie = MovieRepository.delete(1)
+
 ```
 
 ## Contributing
