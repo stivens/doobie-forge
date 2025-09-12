@@ -2,6 +2,7 @@
 
 A sophisticated repository template for Scala 3 applications using [Doobie](https://tpolecat.github.io/doobie/). Features generic CRUD operations, FSP (Filter/Sort/Paginate), upserts, batch operations, and type-safe SQL fragment building.
 
+---
 
 > Lemme forge that boilerplate code for ya
 
@@ -70,7 +71,9 @@ val allUsers: ConnectionIO[List[User]] = UserRepository.getAll
 
 ### TypesafeFragments
 
-The `TypesafeFragments` trait provides compile-time SQL fragment generation for case classes.
+The `TypesafeFragments` trait provides compile-time SQL fragment generation for case classes. No more stringly-typed queries!
+
+![TypesafeFragments in action](screenshots/typesafefragments.gif "TypesafeFragments in action")
 
 ```scala
 class TypesafeFragmentsSpec extends AnyFunSpec {
