@@ -25,7 +25,7 @@ A sophisticated repository template for Scala 3 applications using [Doobie](http
   - [Updates](#updates)
   - [Deletions](#deletions)
   - [Upsertions](#upsertions)
-- [Forge and Dependency Injection](#dependency-injection)
+- [Forge and Dependency Injection](#forge-and-dependency-injection)
 - [Examples](#examples)
 - [Contributing](#contributing)
 - [License](#license)
