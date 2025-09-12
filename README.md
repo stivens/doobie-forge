@@ -71,7 +71,7 @@ val allUsers: ConnectionIO[List[User]] = UserRepository.getAll
 
 ### TypesafeFragments
 
-The `TypesafeFragments` trait provides compile-time SQL fragment generation for case classes. It allows you to inspect the types and avoid typos - no more stringly-typed queries!
+The `TypesafeFragments` trait provides type-aware field interpolation. It allows you to inspect types and avoid typos - no more stringly-typed queries!
 
 ![TypesafeFragments in action](screenshots/typesafefragments.gif "TypesafeFragments in action")
 
