@@ -1,6 +1,8 @@
-# Doobie Forge
+# Forge
 
-A powerful Scala library that provides type-safe, composable database operations built on top of [Doobie](https://tpolecat.github.io/doobie/). Forge offers compile-time SQL fragment generation, flexible repository patterns, and comprehensive mixins for common database operations.
+A sophisticated repository template for Scala 3 applications using [Doobie](https://tpolecat.github.io/doobie/). Features generic CRUD operations, FSP (Filter/Sort/Paginate), upserts, batch operations, and type-safe SQL fragment building.
+
+> Lemme forge that boilerplate code for ya
 
 ## Table of Contents
 
