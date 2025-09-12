@@ -2,7 +2,10 @@
 
 A sophisticated repository template for Scala 3 applications using [Doobie](https://tpolecat.github.io/doobie/). Features generic CRUD operations, FSP (Filter/Sort/Paginate), upserts, batch operations, and type-safe SQL fragment building.
 
+
 > Lemme forge that boilerplate code for ya
+
+![Forge Banner](screenshots/forge.png "Forge Banner")
 
 ## Table of Contents
 
