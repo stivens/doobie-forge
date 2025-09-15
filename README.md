@@ -257,9 +257,8 @@ object PersonRepository extends AbstractRepository.WithIntermediateType[Person, 
 
     // ------------------------------------------------------------
 
-    def getAllUsersThatHaveNoEmailSpecified: ConnectionIO[List[User]] = selectWith(
-      fr"email IS NULL"
-    ) // SELECT f1, f2, ..., email, ... FROM users WHERE email IS NULL
+    def getAllUsersThatHaveNoEmailSpecified: ConnectionIO[List[User]] =
+      selectWith(fr"WHERE email IS NULL") // SELECT f1, f2, ..., email, ... FROM users WHERE email IS NULL
 
     def getNumberOfOrders: ConnectionIO[List[(UserId, Int)]] = {
       inline def order(inline selector: Order => Any): Fragment = Order.fieldWithAlias("order")(selector)
