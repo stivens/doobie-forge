@@ -53,7 +53,7 @@ import io.github.stivens.forge.*
 
 case class User(id: Long, name: String, email: String) derives Read, Write
 
-object UserRepository extends AbstractRepository.Simple[User](tableName = fr"users")
+object UserRepository extends AbstractRepository.Simple[User](tableName = "users")
 
 val users = List(
   User(id = 1, name = "John Doe", email = "john@example.com"),
@@ -172,7 +172,7 @@ class TypesafeFragmentsSpec extends AnyFunSpec {
 ```scala
 case class Movie(id: Long, name: String, director: String, rating: Double) derives Read
 
-object MovieView extends AbstractView.Simple[Movie](tableName = fr"movies")
+object MovieView extends AbstractView.Simple[Movie](tableName = "movies")
 
 // Retrieve all movies
 val movies: ConnectionIO[List[Movie]] = MovieView.getAll
@@ -215,7 +215,7 @@ case class DbPerson(
 ) derives Read, Write
 
 object PersonRepository extends AbstractRepository.WithIntermediateType[Person, DbPerson](
-  tableName = fr"people",
+  tableName = "people",
   dbMapping = new DbMapping[Person, DbPerson] {
     def dbToEntity(db: DbPerson): Person =
       Person(
@@ -241,7 +241,7 @@ object PersonRepository extends AbstractRepository.WithIntermediateType[Person, 
 #### Custom methods
 
 ```scala
-  object UserRepository extends AbstractRepository.Simple[User](tableName = fr"users") {
+  object UserRepository extends AbstractRepository.Simple[User](tableName = "users") {
     // -------- some of the methods inherited from the AbstractView ----------
 
     // protected def frSelectColumnsFromTable: Fragment = fr"SELECT $frColumns FROM $tableName"
@@ -286,7 +286,7 @@ Enables ID-based operations on entities.
 type UserId = Long
 case class User(id: UserId, name: String, email: String) derives Read, Write
 
-object UserRepository extends AbstractRepository.Simple[User](fr"users")
+object UserRepository extends AbstractRepository.Simple[User]("users")
   with IdentifiedBy[User, UserId](extractId = _.id, /* frId = fr"id" */)
 
 // Get user by ID
@@ -315,7 +315,7 @@ case class MovieFilter(
   rating_gte: Option[Double] = None
 )
 
-object MovieRepository extends AbstractView.Simple[Movie](fr"movies")
+object MovieRepository extends AbstractView.Simple[Movie]("movies")
   with Filtering[Movie, MovieFilter](
     handleFilter = toFragments[MovieFilter]
       .usingNonEmpty(_.name_like)(name => fr"name LIKE ${%%(name)}")
@@ -353,7 +353,7 @@ object MovieOrder {
   }
 }
 
-object MovieRepository extends AbstractView.Simple[Movie](fr"movies")
+object MovieRepository extends AbstractView.Simple[Movie]("movies")
   with Filtering[Movie, MovieFilter](/* ... filter setup ... */)
   with FSP[Movie, Movie, MovieFilter, MovieOrder, MovieCursor](
     evalOrder = sortDefinition =>
@@ -397,7 +397,7 @@ case class OrderFilter(
   clientSex_eq: Option["F" | "M"] = None
 )
 
-object OrderView extends AbstractView.Simple[Order](fr"orders")
+object OrderView extends AbstractView.Simple[Order]("orders")
   with IdentifiedBy[Order, Long](_.orderId, fr"orderId")
   with Joined(
     frAlias = safeConst0Quoted("order"),
@@ -421,7 +421,7 @@ case class User(id: Long, name: String, email: String) derives Read, Write
 
 case class UpdateUser(name: Option[String] = None, email: Option[String] = None)
 
-object UserRepository extends AbstractRepository.Simple[User](fr"users")
+object UserRepository extends AbstractRepository.Simple[User]("users")
   with IdentifiedBy[User, Long](_.id)
   with Updates[User, Long, UpdateUser](
     handleUpdate = toFragments[UpdateUser]
@@ -445,7 +445,7 @@ Provides deletion capabilities that return deleted entities.
 ```scala
 case class User(id: Long, name: String, email: String) derives Read, Write
 
-object UserRepository extends AbstractRepository.Simple[User](fr"users")
+object UserRepository extends AbstractRepository.Simple[User]("users")
   with IdentifiedBy[User, Long](_.id)
   with Deletions[User, Long]
 
@@ -463,7 +463,7 @@ Provides upsert (insert or update) capabilities using PostgreSQL's `ON CONFLICT 
 ```scala
 case class User(id: Long, name: String, email: String) derives Read, Write
 
-object UserRepository extends AbstractRepository.Simple[User](fr"users")
+object UserRepository extends AbstractRepository.Simple[User]("users")
   with IdentifiedBy[User, Long](_.id)
   with Upsertions[User]
 
@@ -531,9 +531,9 @@ class DependencyInjectionExample extends AnyFunSpec {
     }
 
     describe("conrecte repositories") {
-      object MovieRepository extends AbstractRepository.Simple[Movie](fr"movies")
+      object MovieRepository extends AbstractRepository.Simple[Movie]("movies")
       object DirectorAverageRatingRepository
-          extends AbstractRepository.Simple[DirectorAverageRating](fr"director_average_ratings")
+          extends AbstractRepository.Simple[DirectorAverageRating]("director_average_ratings")
           with IdentifiedBy[DirectorAverageRating, String](extractId = _.director, frId = fr"director")
           with Upsertions[DirectorAverageRating]
 
@@ -655,7 +655,7 @@ object MovieOrder {
 }
 
 object MovieRepository
-    extends AbstractRepository.Simple[Movie](tableName = fr"movies")
+    extends AbstractRepository.Simple[Movie](tableName = "movies")
     with IdentifiedBy[Movie, MovieId](extractId = _.id, frId = fr"id")
     with Filtering[Movie, MovieFilter](
       handleFilter = toFragments[MovieFilter]

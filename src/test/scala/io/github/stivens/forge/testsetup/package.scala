@@ -7,7 +7,7 @@ import doobie.*
 package object testsetup {
   val transactor = Transactor.fromDriverManager[IO](
     driver = "org.postgresql.Driver",
-    url = "jdbc:postgresql://localhost:5432/test?sslmode=disable",
+    url = "jdbc:postgresql://localhost:5431/test?sslmode=disable",
     user = "postgres",
     password = "postgres",
     logHandler = None

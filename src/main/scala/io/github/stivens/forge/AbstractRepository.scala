@@ -43,7 +43,7 @@ import scala.reflect.ClassTag
  * }}}
  */
 abstract class AbstractRepository[Entity, DbEntity <: Product](
-    tableName: Fragment,
+    tableName: String,
     protected val dbMapping: DbMapping[Entity, DbEntity]
 )(using
     read: Read[DbEntity],
@@ -91,7 +91,7 @@ abstract class AbstractRepository[Entity, DbEntity <: Product](
   protected def frOnConflict: Fragment    = fr"ON CONFLICT DO NOTHING"
 
   protected def frCreateMany(entities: NonEmptyList[DbEntity]): Fragment =
-    sql"""INSERT INTO $tableName ($frColumns) ${values(entities)}"""
+    sql"""INSERT INTO $frTableName ($frColumns) ${values(entities)}"""
 
   protected def frCreate(entity: DbEntity): Fragment =
     frCreateMany(NonEmptyList.one(entity))
@@ -126,7 +126,7 @@ object AbstractRepository {
    * }}}
    */
   abstract class Simple[Entity <: Product](
-      tableName: Fragment
+      tableName: String
   )(using
       Read[Entity],
       Write[Entity],

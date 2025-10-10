@@ -15,7 +15,7 @@ class UpdatesSpec extends AnyFunSpec {
     case class UpdateUser(name: Option[String] = None, email: Option[String] = None, address: Option[String] = None)
 
     object UserRepository
-        extends AbstractRepository.Simple[User](fr"users_to_be_updated")
+        extends AbstractRepository.Simple[User](tableName = "users_to_be_updated")
         with IdentifiedBy[User, Long](_.id)
         with Updates[User, Long, UpdateUser](
           handleUpdate = toFragments[UpdateUser]

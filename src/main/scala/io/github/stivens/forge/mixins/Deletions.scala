@@ -34,5 +34,5 @@ trait Deletions[Entity, EntityId] extends DeleteOps[Entity, EntityId] {
   this: AbstractRepository[Entity, ?] & IdentifiedBy[Entity, EntityId] =>
 
   final def deleteMany(ids: NonEmptyList[EntityId]): ConnectionIO[List[Entity]] =
-    runUpdateMany(fr"DELETE FROM $tableName" ++ whereAnd(frIdsIn(ids)) ++ frWithReturning)
+    runUpdateMany(fr"DELETE FROM $frTableName" ++ whereAnd(frIdsIn(ids)) ++ frWithReturning)
 }

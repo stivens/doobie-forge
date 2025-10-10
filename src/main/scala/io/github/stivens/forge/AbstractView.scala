@@ -4,6 +4,7 @@ import doobie.*
 import doobie.implicits.toSqlInterpolator
 import fs2.Stream
 import io.github.stivens.forge.interface.*
+import io.github.stivens.forge.util.DoobieUtil.*
 
 import scala.reflect.ClassTag
 
@@ -21,7 +22,7 @@ import scala.reflect.ClassTag
  * @param dbToEntity Function to convert database entities to domain entities
  */
 abstract class AbstractView[Entity, DbEntity <: Product](
-    final protected val tableName: Fragment,
+    final protected val tableName: String,
     final protected val dbToEntity: DbEntity => Entity
 )(using
     read: Read[DbEntity],
@@ -52,8 +53,10 @@ abstract class AbstractView[Entity, DbEntity <: Product](
   protected object columnsMeta extends ColumnsMeta[DbEntity]()
   import columnsMeta.*
 
-  protected def frSelectColumnsFromTable: Fragment = fr"SELECT $frColumns FROM $tableName"
-  protected def frSelectCountFromTable: Fragment   = fr"SELECT COUNT(*) FROM $tableName"
+  protected val frTableName: Fragment              = safeConst(tableName)
+  protected val fr0TableName: Fragment             = safeConst0(tableName)
+  protected def frSelectColumnsFromTable: Fragment = fr"SELECT $frColumns FROM $frTableName"
+  protected def frSelectCountFromTable: Fragment   = fr"SELECT COUNT(*) FROM $frTableName"
 
   final protected def selectWith(fragment: Fragment): ConnectionIO[List[Entity]] =
     runSelect(frSelectColumnsFromTable ++ fragment)
@@ -96,12 +99,9 @@ object AbstractView {
    * @param tableName The database table name as a Doobie Fragment
    */
   abstract class Simple[Entity <: Product](
-      tableName: Fragment
+      tableName: String
   )(using
       Read[Entity],
       ClassTag[Entity]
-  ) extends AbstractView[Entity, Entity](
-        tableName = tableName,
-        dbToEntity = identity
-      )
+  ) extends AbstractView[Entity, Entity](tableName = tableName, dbToEntity = identity)
 }

@@ -56,7 +56,7 @@ trait Joined(
 
   private given Write[_ID] = _writeId
 
-  final protected val frTableNameWithAlias = fr"$tableName AS $frAlias"
+  final protected val frTableNameWithAlias = fr"$frTableName AS $frAlias"
   final protected val frIdWithAlias        = fr"$frAlias.$frId"
 
   protected lazy val columsWithAliasList: List[Fragment] = columnsMeta.columnsListAsFragments.map(c => fr"$frAlias.$c")

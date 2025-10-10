@@ -48,7 +48,7 @@ trait Updates[Entity, ID, UpdateType <: Product](
 
   private given Write[_ID] = _writeId
 
-  protected def frUpdateTable: Fragment = fr"UPDATE $tableName"
+  protected def frUpdateTable: Fragment = fr"UPDATE $frTableName"
 
   final def updateMany(ids: NonEmptyList[ID], update: UpdateType): ConnectionIO[List[Entity]] =
     evalUpdate(update).mapNelOrSucceedWith(

@@ -12,7 +12,7 @@ class DeletionsSpec extends AnyFunSpec {
     case class User(id: Long, name: String) derives Read, Write
 
     object UserRepository
-        extends AbstractRepository.Simple[User](fr"users_to_be_deleted")
+        extends AbstractRepository.Simple[User](tableName = "users_to_be_deleted")
         with IdentifiedBy[User, Long](_.id)
         with Deletions[User, Long]
 

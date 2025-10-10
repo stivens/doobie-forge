@@ -15,7 +15,7 @@ class IdentifiedBySpec extends AnyFunSpec {
   describe("given view with IdentifiedBy mixin") {
     case class User(id: Long, name: String, email: String) derives Read, Write
 
-    object UserRepository extends AbstractRepository.Simple[User](fr"users") with IdentifiedBy[User, Long](_.id)
+    object UserRepository extends AbstractRepository.Simple[User](tableName = "users") with IdentifiedBy[User, Long](_.id)
 
     // init relation
     sql"""

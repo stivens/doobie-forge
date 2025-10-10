@@ -44,5 +44,5 @@ trait Upsertions[Entity] extends UpsertOps[Entity] {
     .map(c => fr"$c = EXCLUDED.$c")
     .intercalate(fr",")
 
-  override protected val frOnConflict: Fragment = fr"ON CONFLICT ($frId) DO UPDATE SET $frUpsertValues"
+  override protected val frOnConflict: Fragment = fr"ON CONFLICT ON CONSTRAINT ${fr0TableName}_pkey DO UPDATE SET $frUpsertValues"
 }

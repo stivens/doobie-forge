@@ -37,9 +37,9 @@ class DependencyInjectionExample extends AnyFunSpec {
     }
 
     describe("conrecte repositories") {
-      object MovieRepository extends AbstractRepository.Simple[Movie](fr"movies")
+      object MovieRepository extends AbstractRepository.Simple[Movie](tableName = "movies")
       object DirectorAverageRatingRepository
-          extends AbstractRepository.Simple[DirectorAverageRating](fr"director_average_ratings")
+          extends AbstractRepository.Simple[DirectorAverageRating](tableName = "director_average_ratings")
           with IdentifiedBy[DirectorAverageRating, String](extractId = _.director, frId = fr"director")
           with Upsertions[DirectorAverageRating]
 

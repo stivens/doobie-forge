@@ -28,7 +28,7 @@ class JoinedSpec extends AnyFunSpec {
     )
 
     object OrderView
-        extends AbstractView.Simple[Order](fr"orders")
+        extends AbstractView.Simple[Order](tableName = "orders")
         with IdentifiedBy[Order, Long](_.orderId, fr"orderId")
         with Joined(
           frAlias = safeConst0Quoted("order"),

@@ -46,7 +46,7 @@ class FSPSpec extends AnyFunSpec {
     }
 
     object MovieRepository
-        extends AbstractRepository.Simple[Movie](fr"movies_fsp")
+        extends AbstractRepository.Simple[Movie](tableName = "movies_fsp")
         with Filtering[Movie, MovieFilter](handleFilter =
           toFragments[MovieFilter]
             .usingNonEmpty(_.name_like)(name => fr"name LIKE ${%%(name)}")

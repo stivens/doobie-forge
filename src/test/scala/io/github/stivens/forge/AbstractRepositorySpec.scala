@@ -22,7 +22,7 @@ class AbstractRepositorySpec extends AnyFunSpec {
     ) derives Read,
           Write
 
-    object MovieRepository extends AbstractRepository.Simple[Movie](tableName = fr"movies")
+    object MovieRepository extends AbstractRepository.Simple[Movie](tableName = "movies")
 
     // init relation
     sql"""
@@ -71,7 +71,7 @@ class AbstractRepositorySpec extends AnyFunSpec {
 
     object PersonRepository
         extends AbstractRepository.WithIntermediateType[Person, DbPerson](
-          tableName = fr"people",
+          tableName = "people",
           dbMapping = new DbMapping[Person, DbPerson] {
             def dbToEntity(db: DbPerson): Person =
               Person(
@@ -155,7 +155,7 @@ class AbstractRepositorySpec extends AnyFunSpec {
     ) derives Read,
           Write
 
-    object MovieRepository extends AbstractRepository.Simple[Movie](tableName = fr"movies_unordered")
+    object MovieRepository extends AbstractRepository.Simple[Movie](tableName = "movies_unordered")
 
     // init relation
     sql"""
