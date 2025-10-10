@@ -2,7 +2,6 @@ package io.github.stivens.forge.mixins
 
 import cats.effect.unsafe.implicits.global
 import doobie.*
-import doobie.Fragments.*
 import doobie.implicits.*
 import io.github.stivens.forge.*
 import io.github.stivens.forge.testsetup.transactor

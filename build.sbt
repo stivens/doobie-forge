@@ -1,4 +1,31 @@
-scalaVersion := "3.3.6"
+import xerial.sbt.Sonatype.sonatypeCentralHost
+
+sonatypeCredentialHost := sonatypeCentralHost
+
+publishTo := sonatypePublishToBundle.value
+
+organization := "io.github.stivens"
+name         := "doobie-forge"
+homepage     := Some(url("https://github.com/stivens/doobie-forge"))
+scmInfo := Some(
+  ScmInfo(
+    url("https://github.com/stivens/doobie-forge"),
+    "scm:git@github.com:stivens/doobie-forge.git"
+  )
+)
+licenses := Seq("MIT" -> url("https://github.com/stivens/doobie-forge/blob/main/LICENSE"))
+developers := List(
+  Developer(
+    id = "stivens",
+    name = "Jacek Bizub",
+    email = "jacekbizub@gmail.com",
+    url = url("https://github.com/stivens")
+  )
+)
+
+version := "0.1.0"
+
+scalaVersion := "3.3.7"
 
 resolvers += Resolver.sonatypeCentralSnapshots
 

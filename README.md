@@ -40,7 +40,20 @@ A sophisticated repository template for Scala 3 applications using [Doobie](http
 
 ## Installation
 
-TODO
+[![Maven Central](https://maven-badges.sml.io/sonatype-central/io.github.stivens/doobie-forge_3/badge.svg?style=social)](https://maven-badges.sml.io/sonatype-central/io.github.stivens/doobie-forge_3)
+
+`build.sbt`:
+
+```scala
+libraryDependencies += "io.github.stivens" %% "doobie-forge" % "0.1.0"
+```
+
+`scala-cli`:
+
+```scala
+//> using lib "io.github.stivens::doobie-forge:0.1.0"
+```
+
 
 ## Quick Start
 
@@ -734,6 +747,11 @@ val updatedMovie = MovieRepository.update(1, update)
 val deletedMovie = MovieRepository.delete(1)
 
 ```
+
+## Requirements
+
+- Scala >= 3.3
+- - **Database Compatibility Warning**: This library has been tested and developed primarily with PostgreSQL. While it may work with other DBMS, compatibility is not guaranteed. If you plan to use this library with other DBMS, please test thoroughly and be aware that you may need to adapt or implement alternative solutions for certain features.
 
 ## Contributing
 
