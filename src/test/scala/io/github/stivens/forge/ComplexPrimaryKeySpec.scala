@@ -11,23 +11,23 @@ import org.scalatest.funspec.AnyFunSpec
 
 class ComplexPrimaryKeySpec extends AnyFunSpec {
   describe("given repository with a complex primary key") {
-    type resourceId = Long
-    type userId     = Long
+    type ResourceId = Long
+    type UserId     = Long
 
     case class ResourceAssignment(
-        resourceId: resourceId,
-        userId: userId,
+        resourceId: ResourceId,
+        userId: UserId,
         description: Option[String]
     ) derives Read,
           Write
 
     object ResourceAssignmentRepository
         extends AbstractRepository.Simple[ResourceAssignment](tableName = "resource_assignments")
-        with IdentifiedBy[ResourceAssignment, (resourceId, userId)](
+        with IdentifiedBy[ResourceAssignment, (ResourceId, UserId)](
           extractId = a => (a.resourceId, a.userId),
           frId = fr"(resourceId, userId)"
         )
-        with Deletions[ResourceAssignment, (resourceId, userId)]
+        with Deletions[ResourceAssignment, (ResourceId, UserId)]
         with Upsertions[ResourceAssignment]
 
     // init relation
