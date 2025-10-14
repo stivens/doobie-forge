@@ -1,8 +1,10 @@
 package io.github.stivens.forge.mixins
 
+import cats.data.NonEmptyList
 import doobie.ConnectionIO
 import doobie.Fragment
 import doobie.Fragments.*
+import doobie.implicits.toSqlInterpolator
 import io.github.stivens.forge.AbstractView
 import io.github.stivens.forge.AsFragments
 import io.github.stivens.forge.interface.FilterOps
@@ -48,13 +50,15 @@ trait Filtering[Entity, FilterType <: Product](
   this: AbstractView[Entity, ?] =>
 
   final def getManyByFilter(filter: FilterType): ConnectionIO[List[Entity]] =
-    selectWith(evalFilter(filter))
+    selectWith(frWhereFilter(filter))
 
   final def countByFilter(filter: FilterType): ConnectionIO[Int] =
-    getCountWhere(evalFilter(filter))
+    getCountWhere(frWhereFilter(filter))
 
-  final protected def evalFilter(filter: FilterType): Fragment =
-    whereAndOpt(toFilterConditions(filter))
+  final protected def frWhereFilter(filter: FilterType): Fragment = {
+    val filterConditions = toFilterConditions(filter)
+    NonEmptyList.fromList(filterConditions).map(whereAnd).getOrElse(fr"WHERE 1=1")
+  }
 
   final protected def toFilterConditions(filter: FilterType): List[Fragment] =
     handleFilter.eval(filter).flatten

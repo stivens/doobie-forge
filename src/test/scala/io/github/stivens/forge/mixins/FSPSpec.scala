@@ -191,5 +191,16 @@ class FSPSpec extends AnyFunSpec {
       assert(resultSortReleaseDate.entities == movies.sortBy(_.releaseDate).reverse)
       assert(resultSortRating.entities == movies.sortBy(_.rating).reverse)
     }
+
+    it("should paginate with cursor when empty filter specified") {
+      val fspRequestPage1 = FSPRequest(pageSize = Some(2), after = None, filter = Some(MovieFilter()))
+      val page1           = MovieRepository.fsp(fspRequestPage1).transact(transactor).unsafeRunSync()
+      val page2 = MovieRepository.fsp(fspRequestPage1.copy(after = Some(page1.nextPageCursor.get))).transact(transactor).unsafeRunSync()
+
+      assert(page1.entities.size == 2)
+      assert(page1.entities.map(_.id) == List(1, 2))
+      assert(page2.entities.size == 2)
+      assert(page2.entities.map(_.id) == List(3, 4))
+    }
   }
 }

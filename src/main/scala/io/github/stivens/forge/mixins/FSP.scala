@@ -118,7 +118,7 @@ trait FSP[Entity, DbEntity <: Product, FilterType <: Product, Order, Cursor](
     val frLimit = fr"LIMIT ${safeNumberConst0(pageSize + 1)}" // fetch 1 more than requested to check if there is next page
 
     val frWhere = request.filter match {
-      case Some(filter) => evalFilter(filter) ++ (frCursor.map(c => fr"AND $c").getOrElse(Fragment.empty))
+      case Some(filter) => frWhereFilter(filter) ++ (frCursor.map(c => fr"AND $c").getOrElse(Fragment.empty))
       case None         => frCursor.map(c => fr"WHERE $c").getOrElse(Fragment.empty)
     }
 
