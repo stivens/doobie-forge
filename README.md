@@ -204,7 +204,7 @@ val count: ConnectionIO[Int] = MovieView.countAll
 ```scala
 case class User(id: Long, name: String, email: String) derives Read, Write
 
-object UserRepository extends AbstractRepository.Simple[User](tableName = fr"users")
+object UserRepository extends AbstractRepository.Simple[User](tableName = "users")
 
 // Create users
 val createdManyUsers = UserRepository.createMany(users)
@@ -751,7 +751,7 @@ val deletedMovie = MovieRepository.delete(1)
 ## Requirements
 
 - Scala >= 3.3
-- - **Database Compatibility Warning**: This library has been tested and developed primarily with PostgreSQL. While it may work with other DBMS, compatibility is not guaranteed. If you plan to use this library with other DBMS, please test thoroughly and be aware that you may need to adapt or implement alternative solutions for certain features.
+- **Database Compatibility Warning**: This library has been tested and developed primarily with PostgreSQL. While it may work with other DBMS, compatibility is not guaranteed. If you plan to use this library with other DBMS, please test thoroughly and be aware that you may need to adapt or implement alternative solutions for certain features.
 
 ## Contributing
 
