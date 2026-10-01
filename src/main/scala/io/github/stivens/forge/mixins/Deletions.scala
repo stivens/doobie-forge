@@ -33,6 +33,9 @@ import io.github.stivens.forge.interface.*
 trait Deletions[Entity, EntityId] extends DeleteOps[Entity, EntityId] {
   this: AbstractRepository[Entity, ?] & IdentifiedBy[Entity, EntityId] =>
 
+  private given Write[_ID] = _writeId
+
+  // not `frIdsIn`: `Joined` overrides it with the table alias, which DELETE doesn't declare
   final def deleteMany(ids: NonEmptyList[EntityId]): ConnectionIO[List[Entity]] =
-    runUpdateMany(fr"DELETE FROM $frTableName" ++ whereAnd(frIdsIn(ids)) ++ frWithReturning)
+    runUpdateMany(fr"DELETE FROM $frTableName" ++ whereAnd(in(frId, ids)) ++ frWithReturning)
 }
