@@ -23,7 +23,8 @@ runs:
       uses: actions/cache/save@v4
       with:
         path: |
-          target/scala*/*test*
+          target/out/jvm/scala*/*/test-*
+          target/sbt-cache
         key: ${{ inputs.cache-key }}-tests-${{ hashFiles('build.sbt') }}-${{ hashFiles('src/test/scala/**') }}
 
     - name: Upload main compilation cache
