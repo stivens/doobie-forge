@@ -493,7 +493,7 @@ val upsertedUser: ConnectionIO[User] = UserRepository.upsert(user)
 
 ```scala
 trait ZioEffect extends EffectLift {
-  final type Eff[A] = IO[MyDbError, A]
+  type Eff[A] = IO[MyDbError, A]
   final protected def lift[A](io: ConnectionIO[A]): IO[MyDbError, A] =
     tzio(io).provideSomeLayer(...).refineOrDie(myErrors)
 }
@@ -501,8 +501,8 @@ trait ZioEffect extends EffectLift {
 object UserRepository
     extends AbstractRepository.Generic[User](tableName = "users")
     with ZioEffect
-    with IdentifiedBy[User, Long](_.id)
-    with Updates[User, Long, UpdateUser](...) {
+    with IdentifiedBy.Generic[User, Long](_.id)
+    with Updates.Generic[User, Long, UpdateUser](...) {
 
   // protected helpers (selectWith, runSelect, runUpdateMany, frWhereFilter, ...) still return ConnectionIO
   def getAllWithoutEmail: IO[MyDbError, List[User]] = lift(selectWith(fr"WHERE email IS NULL"))
@@ -524,6 +524,10 @@ Available base classes:
 | `AbstractRepository.Simple[T]` | `AbstractRepository.Generic[T]` |
 | `AbstractRepository.WithIntermediateType[T, DbT]` | `AbstractRepository.Generic.WithIntermediateType[T, DbT]` |
 
+Every mixin has a `.Generic` variant with the same parameters (`IdentifiedBy.Generic`, `Filtering.Generic`, `FSP.Generic`, `Updates.Generic`, `Deletions.Generic`, `Upsertions.Generic`); the plain mixins return `ConnectionIO`, so they don't compile on a custom effect. `Joined` works with both.
+
+Each interface likewise has an effect-agnostic parent, e.g. `GetByIdOps.Generic[T, ID]`. To depend on one with a known effect, use the `Of` alias in its companion, e.g. `GetByIdOps.Of[IO, User, Long]`.
+
 Errors raised by forge (`EntityNotFoundError` from `getByIdOrFail`, `IllegalStateException` from `create` / `upsert`) are raised inside the `ConnectionIO`, so they reach your `lift`. Map them there.
 
 ## Forge and Dependency Injection
@@ -542,10 +546,6 @@ Forge provides several interface traits that define specific capabilities:
 - `UpsertOps[T]` - Provides upsert operations (`upsert`, `upsertMany`)
 - `FilterOps[T, Filter]` - Provides filtering operations (`getManyByFilter`, `countByFilter`)
 - `FSPOps[T, Filter, Order, Cursor]` - Provides Filter-Sort-Paginate operations (`fsp`)
-
-Every interface exposes the effect type as the abstract member `Eff`. To depend on an interface with a known effect, use the `Of` alias in its companion, e.g. `GetAllOps.Of[ConnectionIO, Movie]` or `GetByIdOps.Of[IO, User, Long]`. Implementations (including mocks) define `type Eff[A]` and implement every operation, including the convenience overloads such as `getByIdOrFail` or `upsertMany(List)`.
-
-> **Migrating from 0.2.x:** replace interface types like `GetAllOps[Movie]` with `GetAllOps.Of[ConnectionIO, Movie]`. In hand-written implementations, add `type Eff[A] = ConnectionIO[A]` and implement the operations that used to be `final` on the interface.
 
 ### Dependency Injection Example
 
@@ -570,8 +570,8 @@ class DependencyInjectionExample extends AnyFunSpec {
     case class DirectorAverageRating(director: String, averageRating: Double)
 
     class DirectorAverageRatingRefresherService(
-        movieRepository: GetAllOps.Of[ConnectionIO, Movie],
-        directorAverageRatingRepository: UpsertOps.Of[ConnectionIO, DirectorAverageRating]
+        movieRepository: GetAllOps[Movie],
+        directorAverageRatingRepository: UpsertOps[DirectorAverageRating]
     ) {
       def refresh(): List[DirectorAverageRating] = (for {
         movies <- movieRepository.getAll
@@ -620,7 +620,6 @@ class DependencyInjectionExample extends AnyFunSpec {
 
       val directorAverageRatingRefresherService = new DirectorAverageRatingRefresherService(
         movieRepository = new GetAllOps[Movie] {
-          type Eff[A] = ConnectionIO[A]
           val movies = List(
             Movie(1, "Movie 1", "Director 1", 5.0),
             Movie(2, "Movie 2", "Director 1", 4.0),
@@ -630,15 +629,10 @@ class DependencyInjectionExample extends AnyFunSpec {
           override def countAll: ConnectionIO[Int]       = connection.pure(movies.size)
         },
         directorAverageRatingRepository = new UpsertOps[DirectorAverageRating] {
-          type Eff[A] = ConnectionIO[A]
-          override def upsertMany(entities: List[DirectorAverageRating]): ConnectionIO[List[DirectorAverageRating]] = {
-            upsertRequestsLog.addAll(entities)
-            connection.pure(entities)
+          override def upsertMany(entities: NonEmptyList[DirectorAverageRating]): ConnectionIO[List[DirectorAverageRating]] = {
+            upsertRequestsLog.addAll(entities.toList)
+            connection.pure(entities.toList)
           }
-          override def upsertMany(entities: NonEmptyList[DirectorAverageRating]): ConnectionIO[List[DirectorAverageRating]] =
-            upsertMany(entities.toList)
-          override def upsert(entity: DirectorAverageRating): ConnectionIO[DirectorAverageRating] =
-            upsertMany(List(entity)).map(_.head)
         }
       )
 

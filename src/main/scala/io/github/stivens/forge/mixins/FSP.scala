@@ -92,55 +92,71 @@ trait FSP[Entity, DbEntity <: Product, FilterType <: Product, Order, Cursor](
     protected val evalCursor: (Cursor, SortDefinition[Order]) => Fragment,
     protected val constructCursor: DbEntity => Cursor
 )(using
-    orderDefaultValue: OrderDefaultValue[Order]
-) extends FSPOps[Entity, FilterType, Order, Cursor] {
-  this: AbstractView[Entity, DbEntity] & Filtering[Entity, FilterType] =>
+    protected val orderDefaultValue: OrderDefaultValue[Order]
+) extends FSPOps[Entity, FilterType, Order, Cursor]
+    with FSP.Core[Entity, DbEntity, FilterType, Order, Cursor] {
+  this: AbstractView[Entity, DbEntity] & Filtering.Core[Entity, FilterType] =>
+}
 
-  /** Performs a Filter-Sort-Paginate query with the given request parameters.
-    *
-    * This method executes a complex query that combines filtering, sorting, and cursor-based
-    * pagination..
-    *
-    * @param request The FSP request containing page size, cursor, filter, and sort parameters
-    */
-  final override def fsp(request: FSPRequestType): Eff[FSPResponseType] = lift(fspC(request))
+object FSP {
 
-  final protected def fspC(request: FSPRequestType): ConnectionIO[FSPResponseType] = {
-    val pageSize = request.pageSize.getOrElse(DEFAUL_FSP_PAGE_SIZE)
+  trait Generic[Entity, DbEntity <: Product, FilterType <: Product, Order, Cursor](
+      protected val evalOrder: SortDefinition[Order] => Fragment,
+      protected val evalCursor: (Cursor, SortDefinition[Order]) => Fragment,
+      protected val constructCursor: DbEntity => Cursor
+  )(using
+      protected val orderDefaultValue: OrderDefaultValue[Order]
+  ) extends Core[Entity, DbEntity, FilterType, Order, Cursor] {
+    this: AbstractView[Entity, DbEntity] & Filtering.Core[Entity, FilterType] =>
+  }
 
-    val sortDefinition = request.sort.getOrElse {
-      SortDefinition(by = orderDefaultValue.get)
-    }
+  trait Core[Entity, DbEntity <: Product, FilterType <: Product, Order, Cursor] extends FSPOps.Generic[Entity, FilterType, Order, Cursor] {
+    this: AbstractView[Entity, DbEntity] & Filtering.Core[Entity, FilterType] =>
 
-    val frCursor = request.after.map(evalCursor(_, sortDefinition))
+    protected val evalOrder: SortDefinition[Order] => Fragment
+    protected val evalCursor: (Cursor, SortDefinition[Order]) => Fragment
+    protected val constructCursor: DbEntity => Cursor
+    protected val orderDefaultValue: OrderDefaultValue[Order]
 
-    val frOrderBy = fr"ORDER BY" ++ evalOrder(sortDefinition)
+    final override def fsp(request: FSPRequestType): Eff[FSPResponseType] = lift(fspC(request))
 
-    val frLimit = fr"LIMIT ${safeNumberConst0(pageSize + 1)}" // fetch 1 more than requested to check if there is next page
+    final protected def fspC(request: FSPRequestType): ConnectionIO[FSPResponseType] = {
+      val pageSize = request.pageSize.getOrElse(DEFAUL_FSP_PAGE_SIZE)
 
-    val frWhere = request.filter match {
-      case Some(filter) => frWhereFilter(filter) ++ (frCursor.map(c => fr"AND $c").getOrElse(Fragment.empty))
-      case None         => frCursor.map(c => fr"WHERE $c").getOrElse(Fragment.empty)
-    }
-
-    val sql = frSelectColumnsFromTable ++ frWhere ++ frOrderBy ++ frLimit
-
-    for {
-      dbEntitiesWithOneExtra <- sql.query[DbEntity](using _readDbEntity).to[List]
-    } yield
-      if (dbEntitiesWithOneExtra.length > pageSize /* == pageSize + 1 to be precise */ ) {
-        val dbEntities = dbEntitiesWithOneExtra.init
-        FSPResponse(
-          entities = dbEntities.map(dbToEntity),
-          hasNextPage = true,
-          nextPageCursor = dbEntities.lastOption.map(constructCursor)
-        )
-      } else {
-        FSPResponse(
-          entities = dbEntitiesWithOneExtra.map(dbToEntity),
-          hasNextPage = false,
-          nextPageCursor = None
-        )
+      val sortDefinition = request.sort.getOrElse {
+        SortDefinition(by = orderDefaultValue.get)
       }
+
+      val frCursor = request.after.map(evalCursor(_, sortDefinition))
+
+      val frOrderBy = fr"ORDER BY" ++ evalOrder(sortDefinition)
+
+      val frLimit = fr"LIMIT ${safeNumberConst0(pageSize + 1)}" // fetch 1 more than requested to check if there is next page
+
+      val frWhere = request.filter match {
+        case Some(filter) => frWhereFilter(filter) ++ (frCursor.map(c => fr"AND $c").getOrElse(Fragment.empty))
+        case None         => frCursor.map(c => fr"WHERE $c").getOrElse(Fragment.empty)
+      }
+
+      val sql = frSelectColumnsFromTable ++ frWhere ++ frOrderBy ++ frLimit
+
+      for {
+        dbEntitiesWithOneExtra <- sql.query[DbEntity](using _readDbEntity).to[List]
+      } yield
+        if (dbEntitiesWithOneExtra.length > pageSize /* == pageSize + 1 to be precise */ ) {
+          val dbEntities = dbEntitiesWithOneExtra.init
+          FSPResponse(
+            entities = dbEntities.map(dbToEntity),
+            hasNextPage = true,
+            nextPageCursor = dbEntities.lastOption.map(constructCursor)
+          )
+        } else {
+          FSPResponse(
+            entities = dbEntitiesWithOneExtra.map(dbToEntity),
+            hasNextPage = false,
+            nextPageCursor = None
+          )
+        }
+    }
   }
 }

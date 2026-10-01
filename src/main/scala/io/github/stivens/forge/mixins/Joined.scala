@@ -52,9 +52,7 @@ trait Joined(
     frJoin: Fragment,
     withSortedByJoinedColumns: Option[Fragment] = None // for SELECT DISTINCT, ORDER BY expressions must appear in select list
 ) {
-  this: AbstractView[?, ?] & IdentifiedBy[?, ?] =>
-
-  private given Write[_ID] = _writeId
+  this: AbstractView[?, ?] & IdentifiedBy.Core[?, ?] =>
 
   final protected val frTableNameWithAlias = fr"$frTableName AS $frAlias"
   final protected val frIdWithAlias        = fr"$frAlias.$frId"

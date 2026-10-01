@@ -43,28 +43,43 @@ import io.github.stivens.forge.util.CollectionUtil.mapNelOrEmpty
   */
 trait Updates[Entity, ID, UpdateType <: Product](
     protected val handleUpdate: AsFragments[UpdateType]
-) extends UpdateOps[Entity, ID, UpdateType] {
-  this: AbstractRepository[Entity, ?] & IdentifiedBy[Entity, ID] =>
+) extends UpdateOps[Entity, ID, UpdateType]
+    with Updates.Core[Entity, ID, UpdateType] {
+  this: AbstractRepository[Entity, ?] & IdentifiedBy.Core[Entity, ID] =>
+}
 
-  private given Write[_ID] = _writeId
+object Updates {
 
-  protected def frUpdateTable: Fragment = fr"UPDATE $frTableName"
+  trait Generic[Entity, ID, UpdateType <: Product](
+      protected val handleUpdate: AsFragments[UpdateType]
+  ) extends Core[Entity, ID, UpdateType] {
+    this: AbstractRepository[Entity, ?] & IdentifiedBy.Core[Entity, ID] =>
 
-  final override def updateMany(ids: NonEmptyList[ID], update: UpdateType): Eff[List[Entity]] = lift(updateManyC(ids, update))
-  final override def updateMany(ids: List[ID], update: UpdateType): Eff[List[Entity]]         = lift(updateManyC(ids, update))
-  final override def update(id: ID, update: UpdateType): Eff[Option[Entity]]                  = lift(updateC(id, update))
+    final override def updateMany(ids: List[ID], update: UpdateType): Eff[List[Entity]] = lift(updateManyC(ids, update))
+    final override def update(id: ID, update: UpdateType): Eff[Option[Entity]]          = lift(updateC(id, update))
+  }
 
-  final protected def updateManyC(ids: NonEmptyList[ID], update: UpdateType): ConnectionIO[List[Entity]] =
-    evalUpdate(update).mapNelOrEmpty { updateFragments =>
-      runUpdateMany(frUpdateTable ++ set(updateFragments) ++ whereAnd(in(frId, ids)) ++ frWithReturning)
-    }
+  trait Core[Entity, ID, UpdateType <: Product] extends UpdateOps.Generic[Entity, ID, UpdateType] {
+    this: AbstractRepository[Entity, ?] & IdentifiedBy.Core[Entity, ID] =>
 
-  final protected def updateManyC(ids: List[ID], update: UpdateType): ConnectionIO[List[Entity]] =
-    ids.mapNelOrEmpty(updateManyC(_, update))
+    protected val handleUpdate: AsFragments[UpdateType]
 
-  final protected def updateC(id: ID, update: UpdateType): ConnectionIO[Option[Entity]] =
-    updateManyC(NonEmptyList.one(id), update).map(_.headOption)
+    protected def frUpdateTable: Fragment = fr"UPDATE $frTableName"
 
-  private def evalUpdate(update: UpdateType): List[Fragment] =
-    handleUpdate.eval(update).flatten
+    final override def updateMany(ids: NonEmptyList[ID], update: UpdateType): Eff[List[Entity]] = lift(updateManyC(ids, update))
+
+    final protected def updateManyC(ids: NonEmptyList[ID], update: UpdateType): ConnectionIO[List[Entity]] =
+      evalUpdate(update).mapNelOrEmpty { updateFragments =>
+        runUpdateMany(frUpdateTable ++ set(updateFragments) ++ whereAnd(in(frId, ids)) ++ frWithReturning)
+      }
+
+    final protected def updateManyC(ids: List[ID], update: UpdateType): ConnectionIO[List[Entity]] =
+      ids.mapNelOrEmpty(updateManyC(_, update))
+
+    final protected def updateC(id: ID, update: UpdateType): ConnectionIO[Option[Entity]] =
+      updateManyC(NonEmptyList.one(id), update).map(_.headOption)
+
+    private def evalUpdate(update: UpdateType): List[Fragment] =
+      handleUpdate.eval(update).flatten
+  }
 }

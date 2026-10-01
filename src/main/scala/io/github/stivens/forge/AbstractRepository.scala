@@ -1,11 +1,11 @@
 package io.github.stivens.forge
 
 import cats.data.NonEmptyList
-import cats.syntax.all.*
 import doobie.*
 import doobie.Fragments.*
 import doobie.implicits.toSqlInterpolator
 import io.github.stivens.forge.interface.*
+import io.github.stivens.forge.util.CollectionUtil.headOrFail
 import io.github.stivens.forge.util.CollectionUtil.mapNelOrEmpty
 
 import scala.reflect.ClassTag
@@ -13,7 +13,7 @@ import scala.reflect.ClassTag
 /**
  * Abstract base class for database repository operations that provides both read and write access to database entities.
  * 
- * This class extends AbstractView to provide read operations and implements CreateOps to provide write operations.
+ * This class extends AbstractView to provide read operations and implements the NonEmptyList operations of CreateOps.Generic; extend Simple or WithIntermediateType for ConnectionIO, or Generic for a custom effect.
  * It serves as the foundation for implementing full-featured repositories that can both query and create entities
  * in the database.
  * 
@@ -55,17 +55,11 @@ abstract class AbstractRepository[Entity, DbEntity <: Product](
       tableName = tableName,
       dbToEntity = dbMapping.dbToEntity
     )
-    with CreateOps[Entity] {
-
-  // interface implementation
+    with CreateOps.Generic[Entity] {
 
   final override def createMany(entities: NonEmptyList[Entity]): Eff[List[Entity]] = lift(createManyC(entities))
-  final override def createMany(entities: List[Entity]): Eff[List[Entity]]         = lift(createManyC(entities))
-  final override def create(entity: Entity): Eff[Entity]                           = lift(createC(entity))
 
   final override def createManyWithOnConflictDoHandle(entities: NonEmptyList[Entity]): Eff[List[Entity]] =
-    lift(createManyWithOnConflictDoHandleC(entities))
-  final override def createManyWithOnConflictDoHandle(entities: List[Entity]): Eff[List[Entity]] =
     lift(createManyWithOnConflictDoHandleC(entities))
 
   final protected def createManyC(entities: NonEmptyList[Entity]): ConnectionIO[List[Entity]] = {
@@ -77,8 +71,7 @@ abstract class AbstractRepository[Entity, DbEntity <: Product](
     entities.mapNelOrEmpty(createManyC(_))
 
   final protected def createC(entity: Entity): ConnectionIO[Entity] =
-    createManyC(NonEmptyList.one(entity))
-      .flatMap(_.headOption.liftTo[ConnectionIO](new IllegalStateException("Entity could not be fetched after its creation")))
+    createManyC(NonEmptyList.one(entity)).headOrFail("creation")
 
   final protected def createManyWithOnConflictDoHandleC(entities: NonEmptyList[Entity]): ConnectionIO[List[Entity]] = {
     val dbEntities = entities.map(dbMapping.entityToDb)
@@ -87,8 +80,6 @@ abstract class AbstractRepository[Entity, DbEntity <: Product](
 
   final protected def createManyWithOnConflictDoHandleC(entities: List[Entity]): ConnectionIO[List[Entity]] =
     entities.mapNelOrEmpty(createManyWithOnConflictDoHandleC(_))
-
-  // internals
 
   import columnsMeta.*
 
@@ -120,6 +111,8 @@ object AbstractRepository {
       ClassTag[Entity]
   ) extends AbstractRepository[Entity, DbEntity](tableName = tableName, dbMapping = dbMapping)
       with ConnectionIOEffect
+      with GetAllOps[Entity]
+      with CreateOps[Entity]
 
   /**
    * Simplified version of AbstractRepository for cases where the domain entity and database entity are the same.
@@ -145,8 +138,7 @@ object AbstractRepository {
       Read[Entity],
       Write[Entity],
       ClassTag[Entity]
-  ) extends Generic[Entity](tableName = tableName)
-      with ConnectionIOEffect
+  ) extends WithIntermediateType[Entity, Entity](tableName = tableName, dbMapping = identityMapping)
 
   /** Like [[Simple]], but leaves `Eff` abstract: mix in an [[EffectLift]] implementation to choose the effect type. */
   abstract class Generic[Entity <: Product](
@@ -155,15 +147,27 @@ object AbstractRepository {
       Read[Entity],
       Write[Entity],
       ClassTag[Entity]
-  ) extends AbstractRepository[Entity, Entity](
-        tableName = tableName,
-        dbMapping = new DbMapping[Entity, Entity] {
-          def dbToEntity(db: Entity): Entity     = db
-          def entityToDb(entity: Entity): Entity = entity
-        }
-      )
+  ) extends Generic.WithIntermediateType[Entity, Entity](tableName = tableName, dbMapping = identityMapping)
 
   object Generic {
-    type WithIntermediateType[Entity, DbEntity <: Product] = AbstractRepository[Entity, DbEntity]
+    abstract class WithIntermediateType[Entity, DbEntity <: Product](
+        tableName: String,
+        dbMapping: DbMapping[Entity, DbEntity]
+    )(using
+        Read[DbEntity],
+        Write[DbEntity],
+        ClassTag[DbEntity],
+        ClassTag[Entity]
+    ) extends AbstractRepository[Entity, DbEntity](tableName = tableName, dbMapping = dbMapping) {
+      final override def createMany(entities: List[Entity]): Eff[List[Entity]] = lift(createManyC(entities))
+      final override def create(entity: Entity): Eff[Entity]                   = lift(createC(entity))
+      final override def createManyWithOnConflictDoHandle(entities: List[Entity]): Eff[List[Entity]] =
+        lift(createManyWithOnConflictDoHandleC(entities))
+    }
+  }
+
+  private def identityMapping[Entity]: DbMapping[Entity, Entity] = new DbMapping[Entity, Entity] {
+    def dbToEntity(db: Entity): Entity     = db
+    def entityToDb(entity: Entity): Entity = entity
   }
 }

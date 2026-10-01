@@ -7,6 +7,7 @@ import doobie.Fragment
 import doobie.implicits.toSqlInterpolator
 import io.github.stivens.forge.AbstractRepository
 import io.github.stivens.forge.interface.UpsertOps
+import io.github.stivens.forge.util.CollectionUtil.headOrFail
 
 /** A mixin trait that provides upsert (insert or update) capabilities for database repositories.
   *
@@ -30,30 +31,37 @@ import io.github.stivens.forge.interface.UpsertOps
   *
   * @note This trait requires the implementing class to extend both `AbstractRepository[Entity, ?]` and `IdentifiedBy[Entity, ?]`
   */
-trait Upsertions[Entity] extends UpsertOps[Entity] {
-  this: AbstractRepository[Entity, ?] & IdentifiedBy[Entity, ?] =>
+trait Upsertions[Entity] extends UpsertOps[Entity] with Upsertions.Core[Entity] {
+  this: AbstractRepository[Entity, ?] & IdentifiedBy.Core[Entity, ?] =>
+}
 
-  // interface implementation
+object Upsertions {
 
-  final override def upsertMany(entities: NonEmptyList[Entity]): Eff[List[Entity]] = lift(upsertManyC(entities))
-  final override def upsertMany(entities: List[Entity]): Eff[List[Entity]]         = lift(upsertManyC(entities))
-  final override def upsert(entity: Entity): Eff[Entity]                           = lift(upsertC(entity))
+  trait Generic[Entity] extends Core[Entity] {
+    this: AbstractRepository[Entity, ?] & IdentifiedBy.Core[Entity, ?] =>
 
-  final protected def upsertManyC(entities: NonEmptyList[Entity]): ConnectionIO[List[Entity]] =
-    createManyWithOnConflictDoHandleC(entities)
+    final override def upsertMany(entities: List[Entity]): Eff[List[Entity]] = lift(upsertManyC(entities))
+    final override def upsert(entity: Entity): Eff[Entity]                   = lift(upsertC(entity))
+  }
 
-  final protected def upsertManyC(entities: List[Entity]): ConnectionIO[List[Entity]] =
-    createManyWithOnConflictDoHandleC(entities)
+  trait Core[Entity] extends UpsertOps.Generic[Entity] {
+    this: AbstractRepository[Entity, ?] & IdentifiedBy.Core[Entity, ?] =>
 
-  final protected def upsertC(entity: Entity): ConnectionIO[Entity] =
-    upsertManyC(NonEmptyList.one(entity))
-      .flatMap(_.headOption.liftTo[ConnectionIO](new IllegalStateException("Entity could not be fetched after its upsert")))
+    final override def upsertMany(entities: NonEmptyList[Entity]): Eff[List[Entity]] = lift(upsertManyC(entities))
 
-  // internals
+    final protected def upsertManyC(entities: NonEmptyList[Entity]): ConnectionIO[List[Entity]] =
+      createManyWithOnConflictDoHandleC(entities)
 
-  protected val frUpsertValues: Fragment = columnsMeta.columnsListAsFragments
-    .map(c => fr"$c = EXCLUDED.$c")
-    .intercalate(fr",")
+    final protected def upsertManyC(entities: List[Entity]): ConnectionIO[List[Entity]] =
+      createManyWithOnConflictDoHandleC(entities)
 
-  override protected val frOnConflict: Fragment = fr"ON CONFLICT ON CONSTRAINT ${fr0TableName}_pkey DO UPDATE SET $frUpsertValues"
+    final protected def upsertC(entity: Entity): ConnectionIO[Entity] =
+      upsertManyC(NonEmptyList.one(entity)).headOrFail("upsert")
+
+    protected val frUpsertValues: Fragment = columnsMeta.columnsListAsFragments
+      .map(c => fr"$c = EXCLUDED.$c")
+      .intercalate(fr",")
+
+    override protected val frOnConflict: Fragment = fr"ON CONFLICT ON CONSTRAINT ${fr0TableName}_pkey DO UPDATE SET $frUpsertValues"
+  }
 }

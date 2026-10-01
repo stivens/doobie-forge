@@ -2,19 +2,20 @@ package io.github.stivens.forge.interface
 
 import doobie.implicits.toSqlInterpolator
 import doobie.util.fragment.Fragment
+import io.github.stivens.forge.ConnectionIOEffectful
 import io.github.stivens.forge.Effectful
-import io.github.stivens.forge.interface.FSPOps.FSPRequest
-import io.github.stivens.forge.interface.FSPOps.FSPResponse
 
-trait FSPOps[Entity, FilterType, Order, Cursor] extends Effectful {
-  final type FSPRequestType  = FSPRequest[FilterType, Order, Cursor]
-  final type FSPResponseType = FSPResponse[Entity, Cursor]
-
-  def fsp(request: FSPRequestType): Eff[FSPResponseType]
-}
+trait FSPOps[Entity, FilterType, Order, Cursor] extends FSPOps.Generic[Entity, FilterType, Order, Cursor] with ConnectionIOEffectful
 
 object FSPOps {
-  type Of[F[_], Entity, FilterType, Order, Cursor] = FSPOps[Entity, FilterType, Order, Cursor] { type Eff[A] = F[A] }
+  trait Generic[Entity, FilterType, Order, Cursor] extends Effectful {
+    final type FSPRequestType  = FSPRequest[FilterType, Order, Cursor]
+    final type FSPResponseType = FSPResponse[Entity, Cursor]
+
+    def fsp(request: FSPRequestType): Eff[FSPResponseType]
+  }
+
+  type Of[F[_], Entity, FilterType, Order, Cursor] = Generic[Entity, FilterType, Order, Cursor] { type Eff[A] = F[A] }
 
   case class FSPResponse[Entity, Cursor](
       entities: List[Entity],

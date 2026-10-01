@@ -18,8 +18,8 @@ class DependencyInjectionExample extends AnyFunSpec {
     case class DirectorAverageRating(director: String, averageRating: Double)
 
     class DirectorAverageRatingRefresherService(
-        movieRepository: GetAllOps.Of[ConnectionIO, Movie],
-        directorAverageRatingRepository: UpsertOps.Of[ConnectionIO, DirectorAverageRating]
+        movieRepository: GetAllOps[Movie],
+        directorAverageRatingRepository: UpsertOps[DirectorAverageRating]
     ) {
       def refresh(): List[DirectorAverageRating] = (for {
         movies <- movieRepository.getAll
@@ -68,7 +68,6 @@ class DependencyInjectionExample extends AnyFunSpec {
 
       val directorAverageRatingRefresherService = new DirectorAverageRatingRefresherService(
         movieRepository = new GetAllOps[Movie] {
-          type Eff[A] = ConnectionIO[A]
           val movies = List(
             Movie(1, "Movie 1", "Director 1", 5.0),
             Movie(2, "Movie 2", "Director 1", 4.0),
@@ -78,15 +77,10 @@ class DependencyInjectionExample extends AnyFunSpec {
           override def countAll: ConnectionIO[Int]       = connection.pure(movies.size)
         },
         directorAverageRatingRepository = new UpsertOps[DirectorAverageRating] {
-          type Eff[A] = ConnectionIO[A]
-          override def upsertMany(entities: List[DirectorAverageRating]): ConnectionIO[List[DirectorAverageRating]] = {
-            upsertRequestsLog.addAll(entities)
-            connection.pure(entities)
+          override def upsertMany(entities: NonEmptyList[DirectorAverageRating]): ConnectionIO[List[DirectorAverageRating]] = {
+            upsertRequestsLog.addAll(entities.toList)
+            connection.pure(entities.toList)
           }
-          override def upsertMany(entities: NonEmptyList[DirectorAverageRating]): ConnectionIO[List[DirectorAverageRating]] =
-            upsertMany(entities.toList)
-          override def upsert(entity: DirectorAverageRating): ConnectionIO[DirectorAverageRating] =
-            upsertMany(List(entity)).map(_.head)
         }
       )
 

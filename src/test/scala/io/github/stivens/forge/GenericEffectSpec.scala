@@ -10,7 +10,7 @@ import io.github.stivens.forge.testsetup.transactor
 import org.scalatest.funspec.AnyFunSpec
 
 trait IOEffect extends EffectLift {
-  final type Eff[A] = IO[A]
+  type Eff[A] = IO[A]
   final protected def lift[A](io: ConnectionIO[A]): IO[A] = io.transact(transactor)
 }
 
@@ -23,15 +23,15 @@ class GenericEffectSpec extends AnyFunSpec {
     object UserRepository
         extends AbstractRepository.Generic[User](tableName = "users_generic_effect")
         with IOEffect
-        with IdentifiedBy[User, Long](_.id)
-        with Filtering[User, UserFilter](
+        with IdentifiedBy.Generic[User, Long](_.id)
+        with Filtering.Generic[User, UserFilter](
           handleFilter = toFragments[UserFilter].usingNonEmpty(_.name_eq)(name => fr"name = $name").compile
         )
-        with Updates[User, Long, UpdateUser](
+        with Updates.Generic[User, Long, UpdateUser](
           handleUpdate = toFragments[UpdateUser].usingNonEmpty(_.name)(name => fr"name = $name").compile
         )
-        with Upsertions[User]
-        with Deletions[User, Long] {
+        with Upsertions.Generic[User]
+        with Deletions.Generic[User, Long] {
 
       def getAllWithoutEmail: IO[List[User]] = lift(selectWith(fr"WHERE email IS NULL"))
 
@@ -74,7 +74,7 @@ class GenericEffectSpec extends AnyFunSpec {
 
     it("should conform to the interfaces refined with the custom effect") {
       val _: GetByIdOps.Of[IO, User, Long] & UpsertOps.Of[IO, User] & DeleteOps.Of[IO, User, Long] = UserRepository
-      assertTypeError("val _: GetAllOps.Of[ConnectionIO, User] = UserRepository")
+      assertTypeError("val _: GetAllOps[User] = UserRepository")
     }
   }
 
@@ -102,10 +102,17 @@ class GenericEffectSpec extends AnyFunSpec {
     }
   }
 
-  describe("given a ConnectionIO repository") {
-    it("should not accept a second effect") {
-      case class Thing(id: Long) derives Read, Write
+  describe("given mismatched effects") {
+    case class Thing(id: Long) derives Read, Write
+
+    it("should not accept a second effect on a ConnectionIO repository") {
       assertTypeError("""object Things extends AbstractRepository.Simple[Thing]("things") with IOEffect""")
+    }
+
+    it("should not accept ConnectionIO mixins on a custom effect") {
+      assertTypeError(
+        """object Things extends AbstractRepository.Generic[Thing]("things") with IOEffect with IdentifiedBy[Thing, Long](_.id)"""
+      )
     }
   }
 }
