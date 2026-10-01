@@ -102,9 +102,10 @@ trait FSP[Entity, DbEntity <: Product, FilterType <: Product, Order, Cursor](
     * pagination..
     *
     * @param request The FSP request containing page size, cursor, filter, and sort parameters
-    * @return A `ConnectionIO` that yields an `FSPResponse` with entities, pagination info, and next cursor
     */
-  final def fsp(request: FSPRequestType): ConnectionIO[FSPResponseType] = {
+  final override def fsp(request: FSPRequestType): Eff[FSPResponseType] = lift(fspC(request))
+
+  final protected def fspC(request: FSPRequestType): ConnectionIO[FSPResponseType] = {
     val pageSize = request.pageSize.getOrElse(DEFAUL_FSP_PAGE_SIZE)
 
     val sortDefinition = request.sort.getOrElse {

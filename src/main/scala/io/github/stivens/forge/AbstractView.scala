@@ -28,24 +28,18 @@ abstract class AbstractView[Entity, DbEntity <: Product](
     read: Read[DbEntity],
     dbEntityClassTag: ClassTag[DbEntity],
     entityClassTag: ClassTag[Entity]
-) extends GetAllOps[Entity] {
+) extends GetAllOps[Entity]
+    with EffectLift {
 
   // interface implementation
 
-  /**
-   * Retrieves all entities from the database table.
-   * 
-   * @return A ConnectionIO that yields a list of all entities in the table
-   */
-  final override def getAll: ConnectionIO[List[Entity]] =
+  final override def getAll: Eff[List[Entity]] = lift(getAllC)
+  final override def countAll: Eff[Int]        = lift(countAllC)
+
+  final protected def getAllC: ConnectionIO[List[Entity]] =
     selectWith(fragment = Fragment.empty)
 
-  /**
-   * Counts the total number of entities in the database table.
-   * 
-   * @return A ConnectionIO that yields the count of all entities in the table
-   */
-  final override def countAll: ConnectionIO[Int] =
+  final protected def countAllC: ConnectionIO[Int] =
     getCountWhere(whereClause = Fragment.empty)
 
   // internals
@@ -87,7 +81,15 @@ abstract class AbstractView[Entity, DbEntity <: Product](
 }
 
 object AbstractView {
-  type WithIntermediateType[Entity, DbEntity <: Product] = AbstractView[Entity, DbEntity]
+  abstract class WithIntermediateType[Entity, DbEntity <: Product](
+      tableName: String,
+      dbToEntity: DbEntity => Entity
+  )(using
+      Read[DbEntity],
+      ClassTag[DbEntity],
+      ClassTag[Entity]
+  ) extends AbstractView[Entity, DbEntity](tableName = tableName, dbToEntity = dbToEntity)
+      with ConnectionIOEffect
 
   /**
    * Simplified version of AbstractView for cases where the domain entity and database entity are the same.
@@ -103,5 +105,18 @@ object AbstractView {
   )(using
       Read[Entity],
       ClassTag[Entity]
+  ) extends Generic[Entity](tableName = tableName)
+      with ConnectionIOEffect
+
+  /** Like [[Simple]], but leaves `Eff` abstract: mix in an [[EffectLift]] implementation to choose the effect type. */
+  abstract class Generic[Entity <: Product](
+      tableName: String
+  )(using
+      Read[Entity],
+      ClassTag[Entity]
   ) extends AbstractView[Entity, Entity](tableName = tableName, dbToEntity = identity)
+
+  object Generic {
+    type WithIntermediateType[Entity, DbEntity <: Product] = AbstractView[Entity, DbEntity]
+  }
 }

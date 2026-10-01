@@ -1,11 +1,14 @@
 package io.github.stivens.forge.mixins
 
 import cats.data.NonEmptyList
+import cats.syntax.all.*
 import doobie.*
 import doobie.Fragments.*
 import doobie.implicits.toSqlInterpolator
 import io.github.stivens.forge.AbstractView
+import io.github.stivens.forge.EntityNotFoundError
 import io.github.stivens.forge.interface.*
+import io.github.stivens.forge.util.CollectionUtil.mapNelOrEmpty
 import io.github.stivens.forge.util.CollectionUtil.toMapBy
 
 /** A mixin trait that provides entity identification capabilities for database views.
@@ -43,14 +46,26 @@ trait IdentifiedBy[Entity, ID](
 
   // interface implementation
 
-  final override def getManyByIds(ids: NonEmptyList[ID]): ConnectionIO[List[Entity]] =
+  final override def getManyByIds(ids: NonEmptyList[ID]): Eff[List[Entity]] = lift(getManyByIdsC(ids))
+  final override def getManyByIds(ids: List[ID]): Eff[List[Entity]]         = lift(getManyByIdsC(ids))
+  final def getManyByIdsToMap(ids: List[ID]): Eff[Map[ID, Entity]]          = lift(getManyByIdsToMapC(ids))
+  final override def getById(id: ID): Eff[Option[Entity]]                   = lift(getByIdC(id))
+  final override def getByIdOrFail(id: ID): Eff[Entity]                     = lift(getByIdOrFailC(id))
+
+  final protected def getManyByIdsC(ids: NonEmptyList[ID]): ConnectionIO[List[Entity]] =
     runSelect(frSelectColumnsFromTable ++ whereAnd(frIdsIn(ids)))
 
-  final def getManyByIdsToMap(ids: List[ID]): ConnectionIO[Map[ID, Entity]] =
-    getManyByIds(ids).map(_.toMapBy(extractId))
+  final protected def getManyByIdsC(ids: List[ID]): ConnectionIO[List[Entity]] =
+    ids.mapNelOrEmpty(getManyByIdsC(_))
 
-  final override def getById(id: ID): ConnectionIO[Option[Entity]] =
-    getManyByIds(NonEmptyList.one(id)).map(_.headOption)
+  final protected def getManyByIdsToMapC(ids: List[ID]): ConnectionIO[Map[ID, Entity]] =
+    getManyByIdsC(ids).map(_.toMapBy(extractId))
+
+  final protected def getByIdC(id: ID): ConnectionIO[Option[Entity]] =
+    getManyByIdsC(NonEmptyList.one(id)).map(_.headOption)
+
+  final protected def getByIdOrFailC(id: ID): ConnectionIO[Entity] =
+    getByIdC(id).flatMap(_.liftTo[ConnectionIO](EntityNotFoundError[Entity, ID](id)))
 
   // internals
 

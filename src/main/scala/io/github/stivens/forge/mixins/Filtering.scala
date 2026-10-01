@@ -49,10 +49,13 @@ trait Filtering[Entity, FilterType <: Product](
 ) extends FilterOps[Entity, FilterType] {
   this: AbstractView[Entity, ?] =>
 
-  final def getManyByFilter(filter: FilterType): ConnectionIO[List[Entity]] =
+  final override def getManyByFilter(filter: FilterType): Eff[List[Entity]] = lift(getManyByFilterC(filter))
+  final override def countByFilter(filter: FilterType): Eff[Int]            = lift(countByFilterC(filter))
+
+  final protected def getManyByFilterC(filter: FilterType): ConnectionIO[List[Entity]] =
     selectWith(frWhereFilter(filter))
 
-  final def countByFilter(filter: FilterType): ConnectionIO[Int] =
+  final protected def countByFilterC(filter: FilterType): ConnectionIO[Int] =
     getCountWhere(frWhereFilter(filter))
 
   final protected def frWhereFilter(filter: FilterType): Fragment = {

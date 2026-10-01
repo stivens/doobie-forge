@@ -25,6 +25,7 @@ A sophisticated repository template for Scala 3 applications using [Doobie](http
   - [Updates](#updates)
   - [Deletions](#deletions)
   - [Upsertions](#upsertions)
+- [Custom effect types](#custom-effect-types)
 - [Forge and Dependency Injection](#forge-and-dependency-injection)
 - [Examples](#examples)
 - [Contributing](#contributing)
@@ -37,6 +38,7 @@ A sophisticated repository template for Scala 3 applications using [Doobie](http
 - **Flexible Entity Mapping**: Support for both simple and complex domain-to-database mappings
 - **Advanced Querying**: Built-in support for filtering, sorting, pagination, and joins
 - **Doobie Integration**: Seamless integration with the Doobie functional database layer
+- **Custom Effect Types**: Public methods can return ZIO, cats-effect `IO` or any other effect instead of `ConnectionIO`
 
 ## Installation
 
@@ -485,6 +487,45 @@ val user = User(id = 1, name = "John Doe", email = "john.doe@example.com")
 val upsertedUser: ConnectionIO[User] = UserRepository.upsert(user)
 ```
 
+## Custom effect types
+
+`Simple` and `WithIntermediateType` repositories and views return `ConnectionIO`. Their `Generic` counterparts leave the effect type `Eff[A]` abstract. You choose it by mixing in an `EffectLift`, which converts the `ConnectionIO` that forge builds internally into your effect.
+
+```scala
+trait ZioEffect extends EffectLift {
+  final type Eff[A] = IO[MyDbError, A]
+  final protected def lift[A](io: ConnectionIO[A]): IO[MyDbError, A] =
+    tzio(io).provideSomeLayer(...).refineOrDie(myErrors)
+}
+
+object UserRepository
+    extends AbstractRepository.Generic[User](tableName = "users")
+    with ZioEffect
+    with IdentifiedBy[User, Long](_.id)
+    with Updates[User, Long, UpdateUser](...) {
+
+  // protected helpers (selectWith, runSelect, runUpdateMany, frWhereFilter, ...) still return ConnectionIO
+  def getAllWithoutEmail: IO[MyDbError, List[User]] = lift(selectWith(fr"WHERE email IS NULL"))
+
+  // every public op has a protected ConnectionIO twin with a `C` suffix, for composing within one transaction
+  def rename(id: Long, name: String): IO[MyDbError, Option[User]] =
+    lift(getByIdOrFailC(id).flatMap(user => updateC(user.id, UpdateUser(name = Some(name)))))
+}
+
+val user: IO[MyDbError, Option[User]] = UserRepository.getById(1)
+```
+
+Available base classes:
+
+| ConnectionIO | Custom effect |
+|---|---|
+| `AbstractView.Simple[T]` | `AbstractView.Generic[T]` |
+| `AbstractView.WithIntermediateType[T, DbT]` | `AbstractView.Generic.WithIntermediateType[T, DbT]` |
+| `AbstractRepository.Simple[T]` | `AbstractRepository.Generic[T]` |
+| `AbstractRepository.WithIntermediateType[T, DbT]` | `AbstractRepository.Generic.WithIntermediateType[T, DbT]` |
+
+Errors raised by forge (`EntityNotFoundError` from `getByIdOrFail`, `IllegalStateException` from `create` / `upsert`) are raised inside the `ConnectionIO`, so they reach your `lift`. Map them there.
+
 ## Forge and Dependency Injection
 
 Forge's interface-based design makes it perfect for dependency injection. You can easily swap implementations for testing.
@@ -501,6 +542,10 @@ Forge provides several interface traits that define specific capabilities:
 - `UpsertOps[T]` - Provides upsert operations (`upsert`, `upsertMany`)
 - `FilterOps[T, Filter]` - Provides filtering operations (`getManyByFilter`, `countByFilter`)
 - `FSPOps[T, Filter, Order, Cursor]` - Provides Filter-Sort-Paginate operations (`fsp`)
+
+Every interface exposes the effect type as the abstract member `Eff`. To depend on an interface with a known effect, use the `Of` alias in its companion, e.g. `GetAllOps.Of[ConnectionIO, Movie]` or `GetByIdOps.Of[IO, User, Long]`. Implementations (including mocks) define `type Eff[A]` and implement every operation, including the convenience overloads such as `getByIdOrFail` or `upsertMany(List)`.
+
+> **Migrating from 0.2.x:** replace interface types like `GetAllOps[Movie]` with `GetAllOps.Of[ConnectionIO, Movie]`. In hand-written implementations, add `type Eff[A] = ConnectionIO[A]` and implement the operations that used to be `final` on the interface.
 
 ### Dependency Injection Example
 
@@ -525,8 +570,8 @@ class DependencyInjectionExample extends AnyFunSpec {
     case class DirectorAverageRating(director: String, averageRating: Double)
 
     class DirectorAverageRatingRefresherService(
-        movieRepository: GetAllOps[Movie],
-        directorAverageRatingRepository: UpsertOps[DirectorAverageRating]
+        movieRepository: GetAllOps.Of[ConnectionIO, Movie],
+        directorAverageRatingRepository: UpsertOps.Of[ConnectionIO, DirectorAverageRating]
     ) {
       def refresh(): List[DirectorAverageRating] = (for {
         movies <- movieRepository.getAll
@@ -575,6 +620,7 @@ class DependencyInjectionExample extends AnyFunSpec {
 
       val directorAverageRatingRefresherService = new DirectorAverageRatingRefresherService(
         movieRepository = new GetAllOps[Movie] {
+          type Eff[A] = ConnectionIO[A]
           val movies = List(
             Movie(1, "Movie 1", "Director 1", 5.0),
             Movie(2, "Movie 2", "Director 1", 4.0),
@@ -584,10 +630,15 @@ class DependencyInjectionExample extends AnyFunSpec {
           override def countAll: ConnectionIO[Int]       = connection.pure(movies.size)
         },
         directorAverageRatingRepository = new UpsertOps[DirectorAverageRating] {
-          override def upsertMany(entities: NonEmptyList[DirectorAverageRating]): ConnectionIO[List[DirectorAverageRating]] = {
-            upsertRequestsLog.addAll(entities.toList)
-            connection.pure(entities.toList)
+          type Eff[A] = ConnectionIO[A]
+          override def upsertMany(entities: List[DirectorAverageRating]): ConnectionIO[List[DirectorAverageRating]] = {
+            upsertRequestsLog.addAll(entities)
+            connection.pure(entities)
           }
+          override def upsertMany(entities: NonEmptyList[DirectorAverageRating]): ConnectionIO[List[DirectorAverageRating]] =
+            upsertMany(entities.toList)
+          override def upsert(entity: DirectorAverageRating): ConnectionIO[DirectorAverageRating] =
+            upsertMany(List(entity)).map(_.head)
         }
       )
 

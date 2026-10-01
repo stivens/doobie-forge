@@ -7,7 +7,7 @@ import doobie.implicits.toSqlInterpolator
 import io.github.stivens.forge.AbstractRepository
 import io.github.stivens.forge.AsFragments
 import io.github.stivens.forge.interface.UpdateOps
-import io.github.stivens.forge.util.CollectionUtil.mapNelOrSucceedWith
+import io.github.stivens.forge.util.CollectionUtil.mapNelOrEmpty
 
 /** A mixin trait that provides update capabilities for database repositories.
   *
@@ -50,14 +50,20 @@ trait Updates[Entity, ID, UpdateType <: Product](
 
   protected def frUpdateTable: Fragment = fr"UPDATE $frTableName"
 
-  final def updateMany(ids: NonEmptyList[ID], update: UpdateType): ConnectionIO[List[Entity]] =
-    evalUpdate(update).mapNelOrSucceedWith(
-      updateFragments =>
-        runUpdateMany {
-          frUpdateTable ++ set(updateFragments) ++ whereAnd(in(frId, ids)) ++ frWithReturning
-        },
-      default = List.empty
-    )
+  final override def updateMany(ids: NonEmptyList[ID], update: UpdateType): Eff[List[Entity]] = lift(updateManyC(ids, update))
+  final override def updateMany(ids: List[ID], update: UpdateType): Eff[List[Entity]]         = lift(updateManyC(ids, update))
+  final override def update(id: ID, update: UpdateType): Eff[Option[Entity]]                  = lift(updateC(id, update))
+
+  final protected def updateManyC(ids: NonEmptyList[ID], update: UpdateType): ConnectionIO[List[Entity]] =
+    evalUpdate(update).mapNelOrEmpty { updateFragments =>
+      runUpdateMany(frUpdateTable ++ set(updateFragments) ++ whereAnd(in(frId, ids)) ++ frWithReturning)
+    }
+
+  final protected def updateManyC(ids: List[ID], update: UpdateType): ConnectionIO[List[Entity]] =
+    ids.mapNelOrEmpty(updateManyC(_, update))
+
+  final protected def updateC(id: ID, update: UpdateType): ConnectionIO[Option[Entity]] =
+    updateManyC(NonEmptyList.one(id), update).map(_.headOption)
 
   private def evalUpdate(update: UpdateType): List[Fragment] =
     handleUpdate.eval(update).flatten

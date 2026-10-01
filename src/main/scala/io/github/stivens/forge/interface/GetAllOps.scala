@@ -1,8 +1,12 @@
 package io.github.stivens.forge.interface
 
-import doobie.ConnectionIO
+import io.github.stivens.forge.Effectful
 
-trait GetAllOps[Entity] {
-  def getAll: ConnectionIO[List[Entity]]
-  def countAll: ConnectionIO[Int]
+trait GetAllOps[Entity] extends Effectful {
+  def getAll: Eff[List[Entity]]
+  def countAll: Eff[Int]
+}
+
+object GetAllOps {
+  type Of[F[_], Entity] = GetAllOps[Entity] { type Eff[A] = F[A] }
 }

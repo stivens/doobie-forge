@@ -1,26 +1,16 @@
 package io.github.stivens.forge.interface
 
 import cats.data.NonEmptyList
-import doobie.ConnectionIO
-import doobie.free.connection
-import io.github.stivens.forge.util.CollectionUtil.mapNelOrSucceedWith
+import io.github.stivens.forge.Effectful
 
-trait CreateOps[Entity] {
-  def createMany(entities: NonEmptyList[Entity]): ConnectionIO[List[Entity]]
+trait CreateOps[Entity] extends Effectful {
+  def createMany(entities: NonEmptyList[Entity]): Eff[List[Entity]]
+  def createMany(entities: List[Entity]): Eff[List[Entity]]
+  def create(entity: Entity): Eff[Entity]
+  def createManyWithOnConflictDoHandle(entities: NonEmptyList[Entity]): Eff[List[Entity]]
+  def createManyWithOnConflictDoHandle(entities: List[Entity]): Eff[List[Entity]]
+}
 
-  final def createMany(entities: List[Entity]): ConnectionIO[List[Entity]] =
-    entities.mapNelOrSucceedWith(entitiesNel => createMany(entitiesNel), default = List.empty)
-
-  final def create(entity: Entity): ConnectionIO[Entity] = for {
-    result <- createMany(NonEmptyList.one(entity))
-    createdEntity <- result.headOption match {
-      case None         => connection.raiseError(new IllegalStateException("Entity could not be fetched after its creation"))
-      case Some(entity) => connection.pure(entity)
-    }
-  } yield createdEntity
-
-  def createManyWithOnConflictDoHandle(entities: NonEmptyList[Entity]): ConnectionIO[List[Entity]]
-
-  final def createManyWithOnConflictDoHandle(entities: List[Entity]): ConnectionIO[List[Entity]] =
-    entities.mapNelOrSucceedWith(entitiesNel => createManyWithOnConflictDoHandle(entitiesNel), default = List.empty)
+object CreateOps {
+  type Of[F[_], Entity] = CreateOps[Entity] { type Eff[A] = F[A] }
 }

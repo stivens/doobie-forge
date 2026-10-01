@@ -10,6 +10,9 @@ object CollectionUtil {
     def mapNelOrSucceedWith[B](f: NonEmptyList[A] => ConnectionIO[B], default: B): ConnectionIO[B] =
       catsSyntaxList(wrapped).toNel.map(f).getOrElse(connection.pure(default))
 
+    def mapNelOrEmpty[B](f: NonEmptyList[A] => ConnectionIO[List[B]]): ConnectionIO[List[B]] =
+      mapNelOrSucceedWith(f, default = List.empty)
+
     def toMapBy[B](uniquePropertySelector: A => B): Map[B, A] =
       wrapped.groupBy(uniquePropertySelector).collect {
         case (id, List(item)) => (id, item)

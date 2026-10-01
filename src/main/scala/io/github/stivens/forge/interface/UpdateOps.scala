@@ -1,16 +1,14 @@
 package io.github.stivens.forge.interface
 
 import cats.data.NonEmptyList
-import doobie.ConnectionIO
-import io.github.stivens.forge.util.CollectionUtil.mapNelOrSucceedWith
+import io.github.stivens.forge.Effectful
 
-trait UpdateOps[Entity, ID, UpdateType] {
-  def updateMany(ids: NonEmptyList[ID], update: UpdateType): ConnectionIO[List[Entity]]
+trait UpdateOps[Entity, ID, UpdateType] extends Effectful {
+  def updateMany(ids: NonEmptyList[ID], update: UpdateType): Eff[List[Entity]]
+  def updateMany(ids: List[ID], update: UpdateType): Eff[List[Entity]]
+  def update(id: ID, update: UpdateType): Eff[Option[Entity]]
+}
 
-  def updateMany(ids: List[ID], update: UpdateType): ConnectionIO[List[Entity]] =
-    ids.mapNelOrSucceedWith(idsNel => updateMany(idsNel, update), default = List.empty)
-
-  final def update(id: ID, update: UpdateType): ConnectionIO[Option[Entity]] =
-    updateMany(NonEmptyList.one(id), update)
-      .map(_.headOption)
+object UpdateOps {
+  type Of[F[_], Entity, ID, UpdateType] = UpdateOps[Entity, ID, UpdateType] { type Eff[A] = F[A] }
 }

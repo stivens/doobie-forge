@@ -1,19 +1,21 @@
 package io.github.stivens.forge.interface
 
-import doobie.ConnectionIO
 import doobie.implicits.toSqlInterpolator
 import doobie.util.fragment.Fragment
+import io.github.stivens.forge.Effectful
 import io.github.stivens.forge.interface.FSPOps.FSPRequest
 import io.github.stivens.forge.interface.FSPOps.FSPResponse
 
-trait FSPOps[Entity, FilterType, Order, Cursor] {
+trait FSPOps[Entity, FilterType, Order, Cursor] extends Effectful {
   final type FSPRequestType  = FSPRequest[FilterType, Order, Cursor]
   final type FSPResponseType = FSPResponse[Entity, Cursor]
 
-  def fsp(request: FSPRequestType): ConnectionIO[FSPResponseType]
+  def fsp(request: FSPRequestType): Eff[FSPResponseType]
 }
 
 object FSPOps {
+  type Of[F[_], Entity, FilterType, Order, Cursor] = FSPOps[Entity, FilterType, Order, Cursor] { type Eff[A] = F[A] }
+
   case class FSPResponse[Entity, Cursor](
       entities: List[Entity],
       hasNextPage: Boolean,

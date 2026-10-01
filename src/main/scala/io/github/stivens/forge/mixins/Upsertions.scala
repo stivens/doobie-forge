@@ -35,8 +35,19 @@ trait Upsertions[Entity] extends UpsertOps[Entity] {
 
   // interface implementation
 
-  final def upsertMany(entities: NonEmptyList[Entity]): ConnectionIO[List[Entity]] =
-    createManyWithOnConflictDoHandle(entities)
+  final override def upsertMany(entities: NonEmptyList[Entity]): Eff[List[Entity]] = lift(upsertManyC(entities))
+  final override def upsertMany(entities: List[Entity]): Eff[List[Entity]]         = lift(upsertManyC(entities))
+  final override def upsert(entity: Entity): Eff[Entity]                           = lift(upsertC(entity))
+
+  final protected def upsertManyC(entities: NonEmptyList[Entity]): ConnectionIO[List[Entity]] =
+    createManyWithOnConflictDoHandleC(entities)
+
+  final protected def upsertManyC(entities: List[Entity]): ConnectionIO[List[Entity]] =
+    createManyWithOnConflictDoHandleC(entities)
+
+  final protected def upsertC(entity: Entity): ConnectionIO[Entity] =
+    upsertManyC(NonEmptyList.one(entity))
+      .flatMap(_.headOption.liftTo[ConnectionIO](new IllegalStateException("Entity could not be fetched after its upsert")))
 
   // internals
 
