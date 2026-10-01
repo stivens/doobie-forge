@@ -6,13 +6,9 @@ import doobie.*
 import doobie.implicits.*
 import io.github.stivens.forge.interface.*
 import io.github.stivens.forge.mixins.*
+import io.github.stivens.forge.testsetup.IOEffect
 import io.github.stivens.forge.testsetup.transactor
 import org.scalatest.funspec.AnyFunSpec
-
-trait IOEffect extends EffectLift {
-  type Eff[A] = IO[A]
-  final protected def lift[A](io: ConnectionIO[A]): IO[A] = io.transact(transactor)
-}
 
 class GenericEffectSpec extends AnyFunSpec {
   describe("given a Generic repository with a custom effect") {

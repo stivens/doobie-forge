@@ -489,20 +489,42 @@ val upsertedUser: ConnectionIO[User] = UserRepository.upsert(user)
 
 ## Custom effect types
 
-`Simple` and `WithIntermediateType` repositories and views return `ConnectionIO`. Their `Generic` counterparts leave the effect type `Eff[A]` abstract. You choose it by mixing in an `EffectLift`, which converts the `ConnectionIO` that forge builds internally into your effect.
+`Simple` and `WithIntermediateType` repositories and views return `ConnectionIO`. To return another effect (ZIO, cats-effect `IO`, ...), define an `EffectLift`, which converts the `ConnectionIO` that forge builds internally into your effect:
 
 ```scala
+import doobie.ConnectionIO
+import io.github.gaelrenoux.tranzactio.doobie.*
+import io.github.stivens.forge.EffectLift
+import zio.*
+
 trait ZioEffect extends EffectLift {
   type Eff[A] = IO[MyDbError, A]
   final protected def lift[A](io: ConnectionIO[A]): IO[MyDbError, A] =
     tzio(io).provideSomeLayer(...).refineOrDie(myErrors)
 }
+```
+
+### Binding forge to your effect (recommended)
+
+Bind forge to your effect once by extending `Forge`, then build repositories from that object exactly as you would from `AbstractRepository`:
+
+```scala
+import io.github.stivens.forge.Forge
+
+object RepositoryTemplate extends Forge with ZioEffect
+```
+
+```scala
+import doobie.*
+import doobie.implicits.*
+import zio.*
+import my.project.RepositoryTemplate
+import my.project.RepositoryTemplate.*
 
 object UserRepository
-    extends AbstractRepository.Generic[User](tableName = "users")
-    with ZioEffect
-    with IdentifiedBy.Generic[User, Long](_.id)
-    with Updates.Generic[User, Long, UpdateUser](...) {
+    extends RepositoryTemplate.Simple[User](tableName = "users")
+    with IdentifiedBy[User, Long](_.id)
+    with Updates[User, Long, UpdateUser](...) {
 
   // protected helpers (selectWith, runSelect, runUpdateMany, frWhereFilter, ...) still return ConnectionIO
   def getAllWithoutEmail: IO[MyDbError, List[User]] = lift(selectWith(fr"WHERE email IS NULL"))
@@ -515,7 +537,26 @@ object UserRepository
 val user: IO[MyDbError, Option[User]] = UserRepository.getById(1)
 ```
 
-Available base classes:
+A `Forge` object provides:
+
+- base classes: `Simple`, `WithIntermediateType`, `View.Simple`, `View.WithIntermediateType`
+- mixins: `IdentifiedBy`, `Filtering`, `FSP`, `Updates`, `Deletions`, `Upsertions`, `Joined`
+- interfaces for dependency injection: `GetAllOps`, `GetByIdOps`, `CreateOps`, `FilterOps`, `FSPOps`, `UpdateOps`, `DeleteOps`, `UpsertOps`, e.g. `RepositoryTemplate.GetByIdOps[User, Long]`
+
+### Mixing in the effect directly
+
+Without a `Forge` object, extend a `Generic` base class, mix in your `EffectLift` and use the `.Generic` mixins:
+
+```scala
+import io.github.stivens.forge.AbstractRepository
+import io.github.stivens.forge.mixins.*
+
+object UserRepository
+    extends AbstractRepository.Generic[User](tableName = "users")
+    with ZioEffect
+    with IdentifiedBy.Generic[User, Long](_.id)
+    with Updates.Generic[User, Long, UpdateUser](...)
+```
 
 | ConnectionIO | Custom effect |
 |---|---|
@@ -526,7 +567,9 @@ Available base classes:
 
 Every mixin has a `.Generic` variant with the same parameters (`IdentifiedBy.Generic`, `Filtering.Generic`, `FSP.Generic`, `Updates.Generic`, `Deletions.Generic`, `Upsertions.Generic`); the plain mixins return `ConnectionIO`, so they don't compile on a custom effect. `Joined` works with both.
 
-Each interface likewise has an effect-agnostic parent, e.g. `GetByIdOps.Generic[T, ID]`. To depend on one with a known effect, use the `Of` alias in its companion, e.g. `GetByIdOps.Of[IO, User, Long]`.
+Each interface has an effect-agnostic parent, e.g. `GetByIdOps.Generic[T, ID]`. To depend on one with a known effect, use the `Of` alias in its companion, e.g. `GetByIdOps.Of[IO, User, Long]`.
+
+### Errors
 
 Errors raised by forge (`EntityNotFoundError` from `getByIdOrFail`, `IllegalStateException` from `create` / `upsert`) are raised inside the `ConnectionIO`, so they reach your `lift`. Map them there.
 

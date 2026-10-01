@@ -102,7 +102,7 @@ object AbstractView {
       ClassTag[Entity]
   ) extends WithIntermediateType[Entity, Entity](tableName = tableName, dbToEntity = identity)
 
-  /** Like [[Simple]], but leaves `Eff` abstract: mix in an [[EffectLift]] implementation to choose the effect type. */
+  /** Like [[Simple]], but leaves `Eff` abstract: mix in an [[EffectLift]] implementation to choose the effect type, or extend a [[Forge]]. */
   abstract class Generic[Entity <: Product](
       tableName: String
   )(using
