@@ -1,8 +1,4 @@
-import xerial.sbt.Sonatype.sonatypeCentralHost
-
-sonatypeCredentialHost := sonatypeCentralHost
-
-publishTo := sonatypePublishToBundle.value
+publishTo := localStaging.value
 
 organization := "io.github.stivens"
 name         := "doobie-forge"
@@ -25,7 +21,7 @@ developers := List(
 
 version := "0.1.1"
 
-scalaVersion := "3.3.7"
+scalaVersion := "3.3.8"
 
 resolvers += Resolver.sonatypeCentralSnapshots
 
@@ -47,22 +43,22 @@ scalacOptions ++= Seq(
   "-Xfatal-warnings"
 )
 
-val DoobieVersion = "1.0.0-RC10"
+val DoobieVersion = "1.0.0-RC12"
 
 libraryDependencies ++= Seq(
-  "io.github.stivens" %% "casecomplete" % "0.2.2",
+  "io.github.stivens" %% "casecomplete" % "0.3.0",
   // Cats
-  "org.typelevel" %% "cats-effect" % "3.6.3",
+  "org.typelevel" %% "cats-effect" % "3.7.1",
   // Persistence - doobie
   "org.tpolecat" %% "doobie-core"           % DoobieVersion,
   "org.tpolecat" %% "doobie-postgres"       % DoobieVersion,
   "org.tpolecat" %% "doobie-postgres-circe" % DoobieVersion,
   "org.tpolecat" %% "doobie-hikari"         % DoobieVersion,
   "org.tpolecat" %% "doobie-refined"        % DoobieVersion,
-  "org.tpolecat" %% "doobie-scalatest"      % DoobieVersion % "test",
+  "org.tpolecat" %% "doobie-scalatest"      % DoobieVersion % Test,
   // scalatest
-  "org.scalactic" %% "scalactic" % "3.2.19",
-  "org.scalatest" %% "scalatest" % "3.2.19" % "test"
+  "org.scalactic" %% "scalactic" % "3.2.20",
+  "org.scalatest" %% "scalatest" % "3.2.20" % Test
 )
 
 lazy val root = project

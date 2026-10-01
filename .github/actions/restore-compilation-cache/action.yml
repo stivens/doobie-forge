@@ -28,7 +28,8 @@ runs:
       uses: actions/cache/restore@v4
       with:
         path: |
-          target/scala*/*test*
+          target/out/jvm/scala*/*/test-*
+          target/sbt-cache
         key: ${{ inputs.key }}-tests-${{ hashFiles('build.sbt') }}-${{ hashFiles('src/test/scala/**') }}
         restore-keys: |
           ${{ inputs.key }}-tests-${{ hashFiles('build.sbt') }}

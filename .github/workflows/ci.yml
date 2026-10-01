@@ -7,6 +7,9 @@ on:
       - main
   workflow_call:
 
+env:
+  SBT_LOCAL_CACHE: ${{ github.workspace }}/target/sbt-cache
+
 jobs:
   compilation:
     name: Compile the project
