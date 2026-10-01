@@ -19,7 +19,7 @@ developers := List(
   )
 )
 
-version := "0.1.1"
+version := "0.2.0"
 
 scalaVersion := "3.3.8"
 
@@ -46,7 +46,7 @@ scalacOptions ++= Seq(
 val DoobieVersion = "1.0.0-RC12"
 
 libraryDependencies ++= Seq(
-  "io.github.stivens" %% "casecomplete" % "0.3.0",
+  "io.github.stivens" %% "casecomplete" % "1.0.0",
   // Cats
   "org.typelevel" %% "cats-effect" % "3.7.1",
   // Persistence - doobie

@@ -45,13 +45,13 @@ A sophisticated repository template for Scala 3 applications using [Doobie](http
 `build.sbt`:
 
 ```scala
-libraryDependencies += "io.github.stivens" %% "doobie-forge" % "0.1.1"
+libraryDependencies += "io.github.stivens" %% "doobie-forge" % "0.2.0"
 ```
 
 `scala-cli`:
 
 ```scala
-//> using lib "io.github.stivens::doobie-forge:0.1.1"
+//> using lib "io.github.stivens::doobie-forge:0.2.0"
 ```
 
 
