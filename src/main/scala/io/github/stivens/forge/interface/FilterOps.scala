@@ -1,12 +1,12 @@
 package io.github.stivens.forge.interface
 
-import io.github.stivens.forge.ConnectionIOEffectful
-import io.github.stivens.forge.Effectful
+import io.github.stivens.forge.ConnectionIOEffect
+import io.github.stivens.forge.Effect
 
-trait FilterOps[Entity, FilterType] extends FilterOps.Generic[Entity, FilterType] with ConnectionIOEffectful
+trait FilterOps[Entity, FilterType] extends FilterOps.Generic[Entity, FilterType] with ConnectionIOEffect
 
 object FilterOps {
-  trait Generic[Entity, FilterType] extends Effectful {
+  trait Generic[Entity, FilterType] extends Effect {
     def getManyByFilter(filter: FilterType): Eff[List[Entity]]
     def countByFilter(filter: FilterType): Eff[Int]
   }

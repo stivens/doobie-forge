@@ -13,7 +13,7 @@ import scala.reflect.ClassTag
 /**
  * Abstract base class for database repository operations that provides both read and write access to database entities.
  * 
- * This class extends AbstractView to provide read operations and implements the NonEmptyList operations of CreateOps.Generic; extend Simple or WithIntermediateType for ConnectionIO, or Generic for a custom effect.
+ * This class extends AbstractView to provide read operations and implements CreateOps.Generic to provide write operations.
  * It serves as the foundation for implementing full-featured repositories that can both query and create entities
  * in the database.
  * 
@@ -57,10 +57,10 @@ abstract class AbstractRepository[Entity, DbEntity <: Product](
     )
     with CreateOps.Generic[Entity] {
 
-  final override def createMany(entities: NonEmptyList[Entity]): Eff[List[Entity]] = lift(createManyC(entities))
+  final override def createMany(entities: NonEmptyList[Entity]): Eff[List[Entity]] = transact(createManyC(entities))
 
   final override def createManyWithOnConflictDoHandle(entities: NonEmptyList[Entity]): Eff[List[Entity]] =
-    lift(createManyWithOnConflictDoHandleC(entities))
+    transact(createManyWithOnConflictDoHandleC(entities))
 
   final protected def createManyC(entities: NonEmptyList[Entity]): ConnectionIO[List[Entity]] = {
     val dbEntities = entities.map(dbMapping.entityToDb)
@@ -110,7 +110,7 @@ object AbstractRepository {
       ClassTag[DbEntity],
       ClassTag[Entity]
   ) extends AbstractRepository[Entity, DbEntity](tableName = tableName, dbMapping = dbMapping)
-      with ConnectionIOEffect
+      with ConnectionIOBinding
       with GetAllOps[Entity]
       with CreateOps[Entity]
 
@@ -140,7 +140,7 @@ object AbstractRepository {
       ClassTag[Entity]
   ) extends WithIntermediateType[Entity, Entity](tableName = tableName, dbMapping = identityMapping)
 
-  /** Like [[Simple]], but leaves `Eff` abstract: mix in an [[EffectLift]] implementation to choose the effect type, or extend a [[Forge]]. */
+  /** Like [[Simple]], but leaves `Eff` abstract: mix in an [[EffectBinding]] implementation to choose the effect type, or extend a [[Forge]]. */
   abstract class Generic[Entity <: Product](
       tableName: String
   )(using
@@ -159,10 +159,10 @@ object AbstractRepository {
         ClassTag[DbEntity],
         ClassTag[Entity]
     ) extends AbstractRepository[Entity, DbEntity](tableName = tableName, dbMapping = dbMapping) {
-      final override def createMany(entities: List[Entity]): Eff[List[Entity]] = lift(createManyC(entities))
-      final override def create(entity: Entity): Eff[Entity]                   = lift(createC(entity))
+      final override def createMany(entities: List[Entity]): Eff[List[Entity]] = transact(createManyC(entities))
+      final override def create(entity: Entity): Eff[Entity]                   = transact(createC(entity))
       final override def createManyWithOnConflictDoHandle(entities: List[Entity]): Eff[List[Entity]] =
-        lift(createManyWithOnConflictDoHandleC(entities))
+        transact(createManyWithOnConflictDoHandleC(entities))
     }
   }
 

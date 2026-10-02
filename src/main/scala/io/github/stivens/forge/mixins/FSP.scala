@@ -118,7 +118,7 @@ object FSP {
     protected val constructCursor: DbEntity => Cursor
     protected val orderDefaultValue: OrderDefaultValue[Order]
 
-    final override def fsp(request: FSPRequestType): Eff[FSPResponseType] = lift(fspC(request))
+    final override def fsp(request: FSPRequestType): Eff[FSPResponseType] = transact(fspC(request))
 
     final protected def fspC(request: FSPRequestType): ConnectionIO[FSPResponseType] = {
       val pageSize = request.pageSize.getOrElse(DEFAUL_FSP_PAGE_SIZE)

@@ -24,7 +24,7 @@ class ForgeSpec extends AnyFunSpec {
         with RepositoryTemplate.Deletions[User, Long] {
 
       def renameOrFail(id: Long, name: String): IO[Option[User]] =
-        lift(getByIdOrFailC(id).flatMap(user => updateC(user.id, UpdateUser(name = Some(name)))))
+        transact(getByIdOrFailC(id).flatMap(user => updateC(user.id, UpdateUser(name = Some(name)))))
     }
 
     sql"""
@@ -74,7 +74,7 @@ class ForgeSpec extends AnyFunSpec {
     case class Thing(id: Long) derives Read, Write
 
     it("should not accept a second effect") {
-      assertTypeError("""object Things extends RepositoryTemplate.Simple[Thing]("things") with ConnectionIOEffect""")
+      assertTypeError("""object Things extends RepositoryTemplate.Simple[Thing]("things") with ConnectionIOBinding""")
     }
 
     it("should not accept ConnectionIO mixins") {

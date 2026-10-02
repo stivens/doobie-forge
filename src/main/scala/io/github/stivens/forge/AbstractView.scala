@@ -29,10 +29,10 @@ abstract class AbstractView[Entity, DbEntity <: Product](
     dbEntityClassTag: ClassTag[DbEntity],
     entityClassTag: ClassTag[Entity]
 ) extends GetAllOps.Generic[Entity]
-    with EffectLift {
+    with EffectBinding {
 
-  final override def getAll: Eff[List[Entity]] = lift(getAllC)
-  final override def countAll: Eff[Int]        = lift(countAllC)
+  final override def getAll: Eff[List[Entity]] = transact(getAllC)
+  final override def countAll: Eff[Int]        = transact(countAllC)
 
   final protected def getAllC: ConnectionIO[List[Entity]] =
     selectWith(fragment = Fragment.empty)
@@ -83,7 +83,7 @@ object AbstractView {
       ClassTag[DbEntity],
       ClassTag[Entity]
   ) extends AbstractView[Entity, DbEntity](tableName = tableName, dbToEntity = dbToEntity)
-      with ConnectionIOEffect
+      with ConnectionIOBinding
       with GetAllOps[Entity]
 
   /**
@@ -102,7 +102,7 @@ object AbstractView {
       ClassTag[Entity]
   ) extends WithIntermediateType[Entity, Entity](tableName = tableName, dbToEntity = identity)
 
-  /** Like [[Simple]], but leaves `Eff` abstract: mix in an [[EffectLift]] implementation to choose the effect type, or extend a [[Forge]]. */
+  /** Like [[Simple]], but leaves `Eff` abstract: mix in an [[EffectBinding]] implementation to choose the effect type, or extend a [[Forge]]. */
   abstract class Generic[Entity <: Product](
       tableName: String
   )(using

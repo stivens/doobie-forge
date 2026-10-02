@@ -29,10 +29,10 @@ class GenericEffectSpec extends AnyFunSpec {
         with Upsertions.Generic[User]
         with Deletions.Generic[User, Long] {
 
-      def getAllWithoutEmail: IO[List[User]] = lift(selectWith(fr"WHERE email IS NULL"))
+      def getAllWithoutEmail: IO[List[User]] = transact(selectWith(fr"WHERE email IS NULL"))
 
       def renameOrFail(id: Long, name: String): IO[Option[User]] =
-        lift(getByIdOrFailC(id).flatMap(user => updateC(user.id, UpdateUser(name = Some(name)))))
+        transact(getByIdOrFailC(id).flatMap(user => updateC(user.id, UpdateUser(name = Some(name)))))
     }
 
     sql"""
@@ -55,7 +55,7 @@ class GenericEffectSpec extends AnyFunSpec {
       assert(UserRepository.countByFilter(UserFilter(name_eq = Some("Jane"))).unsafeRunSync() == 1)
     }
 
-    it("should let custom methods lift protected helpers and ConnectionIO twins") {
+    it("should let custom methods transact protected helpers and ConnectionIO twins") {
       assert(UserRepository.getAllWithoutEmail.unsafeRunSync().map(_.id).sorted == List(2L, 3L))
       assert(UserRepository.renameOrFail(3L, "James").unsafeRunSync() == Some(users(2).copy(name = "James")))
       assertThrows[EntityNotFoundError[?, ?]](UserRepository.renameOrFail(99L, "Nobody").unsafeRunSync())

@@ -55,8 +55,8 @@ object IdentifiedBy {
   ) extends Core[Entity, ID] {
     this: AbstractView[Entity, ?] =>
 
-    final override def getManyByIds(ids: List[ID]): Eff[List[Entity]] = lift(getManyByIdsC(ids))
-    final override def getByIdOrFail(id: ID): Eff[Entity]             = lift(getByIdOrFailC(id))
+    final override def getManyByIds(ids: List[ID]): Eff[List[Entity]] = transact(getManyByIdsC(ids))
+    final override def getByIdOrFail(id: ID): Eff[Entity]             = transact(getByIdOrFailC(id))
   }
 
   trait Core[Entity, ID] extends GetByIdOps.Generic[Entity, ID] {
@@ -66,9 +66,9 @@ object IdentifiedBy {
     protected val frId: Fragment
     protected given _writeId: Write[ID]
 
-    final override def getManyByIds(ids: NonEmptyList[ID]): Eff[List[Entity]] = lift(getManyByIdsC(ids))
-    final def getManyByIdsToMap(ids: List[ID]): Eff[Map[ID, Entity]]          = lift(getManyByIdsToMapC(ids))
-    final override def getById(id: ID): Eff[Option[Entity]]                   = lift(getByIdC(id))
+    final override def getManyByIds(ids: NonEmptyList[ID]): Eff[List[Entity]] = transact(getManyByIdsC(ids))
+    final def getManyByIdsToMap(ids: List[ID]): Eff[Map[ID, Entity]]          = transact(getManyByIdsToMapC(ids))
+    final override def getById(id: ID): Eff[Option[Entity]]                   = transact(getByIdC(id))
 
     final protected def getManyByIdsC(ids: NonEmptyList[ID]): ConnectionIO[List[Entity]] =
       runSelect(frSelectColumnsFromTable ++ whereAnd(frIdsIn(ids)))

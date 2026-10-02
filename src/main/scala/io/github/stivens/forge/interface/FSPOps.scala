@@ -2,13 +2,13 @@ package io.github.stivens.forge.interface
 
 import doobie.implicits.toSqlInterpolator
 import doobie.util.fragment.Fragment
-import io.github.stivens.forge.ConnectionIOEffectful
-import io.github.stivens.forge.Effectful
+import io.github.stivens.forge.ConnectionIOEffect
+import io.github.stivens.forge.Effect
 
-trait FSPOps[Entity, FilterType, Order, Cursor] extends FSPOps.Generic[Entity, FilterType, Order, Cursor] with ConnectionIOEffectful
+trait FSPOps[Entity, FilterType, Order, Cursor] extends FSPOps.Generic[Entity, FilterType, Order, Cursor] with ConnectionIOEffect
 
 object FSPOps {
-  trait Generic[Entity, FilterType, Order, Cursor] extends Effectful {
+  trait Generic[Entity, FilterType, Order, Cursor] extends Effect {
     final type FSPRequestType  = FSPRequest[FilterType, Order, Cursor]
     final type FSPResponseType = FSPResponse[Entity, Cursor]
 

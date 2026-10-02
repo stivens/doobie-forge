@@ -1,12 +1,12 @@
 package io.github.stivens.forge.interface
 
-import io.github.stivens.forge.ConnectionIOEffectful
-import io.github.stivens.forge.Effectful
+import io.github.stivens.forge.ConnectionIOEffect
+import io.github.stivens.forge.Effect
 
-trait GetAllOps[Entity] extends GetAllOps.Generic[Entity] with ConnectionIOEffectful
+trait GetAllOps[Entity] extends GetAllOps.Generic[Entity] with ConnectionIOEffect
 
 object GetAllOps {
-  trait Generic[Entity] extends Effectful {
+  trait Generic[Entity] extends Effect {
     def getAll: Eff[List[Entity]]
     def countAll: Eff[Int]
   }

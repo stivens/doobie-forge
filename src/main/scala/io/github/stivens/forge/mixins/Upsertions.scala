@@ -40,14 +40,14 @@ object Upsertions {
   trait Generic[Entity] extends Core[Entity] {
     this: AbstractRepository[Entity, ?] & IdentifiedBy.Core[Entity, ?] =>
 
-    final override def upsertMany(entities: List[Entity]): Eff[List[Entity]] = lift(upsertManyC(entities))
-    final override def upsert(entity: Entity): Eff[Entity]                   = lift(upsertC(entity))
+    final override def upsertMany(entities: List[Entity]): Eff[List[Entity]] = transact(upsertManyC(entities))
+    final override def upsert(entity: Entity): Eff[Entity]                   = transact(upsertC(entity))
   }
 
   trait Core[Entity] extends UpsertOps.Generic[Entity] {
     this: AbstractRepository[Entity, ?] & IdentifiedBy.Core[Entity, ?] =>
 
-    final override def upsertMany(entities: NonEmptyList[Entity]): Eff[List[Entity]] = lift(upsertManyC(entities))
+    final override def upsertMany(entities: NonEmptyList[Entity]): Eff[List[Entity]] = transact(upsertManyC(entities))
 
     final protected def upsertManyC(entities: NonEmptyList[Entity]): ConnectionIO[List[Entity]] =
       createManyWithOnConflictDoHandleC(entities)

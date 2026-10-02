@@ -40,14 +40,14 @@ object Deletions {
   trait Generic[Entity, EntityId] extends Core[Entity, EntityId] {
     this: AbstractRepository[Entity, ?] & IdentifiedBy.Core[Entity, EntityId] =>
 
-    final override def deleteMany(ids: List[EntityId]): Eff[List[Entity]] = lift(deleteManyC(ids))
-    final override def delete(id: EntityId): Eff[Option[Entity]]          = lift(deleteC(id))
+    final override def deleteMany(ids: List[EntityId]): Eff[List[Entity]] = transact(deleteManyC(ids))
+    final override def delete(id: EntityId): Eff[Option[Entity]]          = transact(deleteC(id))
   }
 
   trait Core[Entity, EntityId] extends DeleteOps.Generic[Entity, EntityId] {
     this: AbstractRepository[Entity, ?] & IdentifiedBy.Core[Entity, EntityId] =>
 
-    final override def deleteMany(ids: NonEmptyList[EntityId]): Eff[List[Entity]] = lift(deleteManyC(ids))
+    final override def deleteMany(ids: NonEmptyList[EntityId]): Eff[List[Entity]] = transact(deleteManyC(ids))
 
     // not `frIdsIn`: `Joined` overrides it with the table alias, which DELETE doesn't declare
     final protected def deleteManyC(ids: NonEmptyList[EntityId]): ConnectionIO[List[Entity]] =

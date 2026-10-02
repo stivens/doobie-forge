@@ -64,8 +64,8 @@ object Filtering {
 
     protected val handleFilter: AsFragments[FilterType]
 
-    final override def getManyByFilter(filter: FilterType): Eff[List[Entity]] = lift(getManyByFilterC(filter))
-    final override def countByFilter(filter: FilterType): Eff[Int]            = lift(countByFilterC(filter))
+    final override def getManyByFilter(filter: FilterType): Eff[List[Entity]] = transact(getManyByFilterC(filter))
+    final override def countByFilter(filter: FilterType): Eff[Int]            = transact(countByFilterC(filter))
 
     final protected def getManyByFilterC(filter: FilterType): ConnectionIO[List[Entity]] =
       selectWith(frWhereFilter(filter))

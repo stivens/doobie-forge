@@ -55,8 +55,8 @@ object Updates {
   ) extends Core[Entity, ID, UpdateType] {
     this: AbstractRepository[Entity, ?] & IdentifiedBy.Core[Entity, ID] =>
 
-    final override def updateMany(ids: List[ID], update: UpdateType): Eff[List[Entity]] = lift(updateManyC(ids, update))
-    final override def update(id: ID, update: UpdateType): Eff[Option[Entity]]          = lift(updateC(id, update))
+    final override def updateMany(ids: List[ID], update: UpdateType): Eff[List[Entity]] = transact(updateManyC(ids, update))
+    final override def update(id: ID, update: UpdateType): Eff[Option[Entity]]          = transact(updateC(id, update))
   }
 
   trait Core[Entity, ID, UpdateType <: Product] extends UpdateOps.Generic[Entity, ID, UpdateType] {
@@ -66,7 +66,7 @@ object Updates {
 
     protected def frUpdateTable: Fragment = fr"UPDATE $frTableName"
 
-    final override def updateMany(ids: NonEmptyList[ID], update: UpdateType): Eff[List[Entity]] = lift(updateManyC(ids, update))
+    final override def updateMany(ids: NonEmptyList[ID], update: UpdateType): Eff[List[Entity]] = transact(updateManyC(ids, update))
 
     final protected def updateManyC(ids: NonEmptyList[ID], update: UpdateType): ConnectionIO[List[Entity]] =
       evalUpdate(update).mapNelOrEmpty { updateFragments =>

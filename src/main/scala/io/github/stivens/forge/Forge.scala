@@ -5,11 +5,11 @@ import doobie.*
 import scala.reflect.ClassTag
 
 /** Forge's base classes, mixins and interfaces bound to one effect type, e.g. `object RepositoryTemplate extends Forge with ZioEffect`. */
-trait Forge extends EffectLift { forge =>
+trait Forge extends EffectBinding { forge =>
 
-  private[forge] trait BoundEffect extends EffectLift {
+  private[forge] trait BoundEffect extends EffectBinding {
     final type Eff[A] = forge.Eff[A]
-    final protected def lift[A](io: ConnectionIO[A]): Eff[A] = forge.lift(io)
+    final protected def transact[A](io: ConnectionIO[A]): Eff[A] = forge.transact(io)
   }
 
   abstract class Simple[Entity <: Product](

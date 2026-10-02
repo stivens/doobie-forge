@@ -489,17 +489,17 @@ val upsertedUser: ConnectionIO[User] = UserRepository.upsert(user)
 
 ## Custom effect types
 
-`Simple` and `WithIntermediateType` repositories and views return `ConnectionIO`. To return another effect (ZIO, cats-effect `IO`, ...), define an `EffectLift`, which converts the `ConnectionIO` that forge builds internally into your effect:
+`Simple` and `WithIntermediateType` repositories and views return `ConnectionIO`. To return another effect (ZIO, cats-effect `IO`, ...), define an `EffectBinding`, which converts the `ConnectionIO` that forge builds internally into your effect:
 
 ```scala
 import doobie.ConnectionIO
 import io.github.gaelrenoux.tranzactio.doobie.*
-import io.github.stivens.forge.EffectLift
+import io.github.stivens.forge.EffectBinding
 import zio.*
 
-trait ZioEffect extends EffectLift {
+trait ZioEffect extends EffectBinding {
   type Eff[A] = IO[MyDbError, A]
-  final protected def lift[A](io: ConnectionIO[A]): IO[MyDbError, A] =
+  final protected def transact[A](io: ConnectionIO[A]): IO[MyDbError, A] =
     tzio(io).provideSomeLayer(...).refineOrDie(myErrors)
 }
 ```
@@ -527,11 +527,11 @@ object UserRepository
     with Updates[User, Long, UpdateUser](...) {
 
   // protected helpers (selectWith, runSelect, runUpdateMany, frWhereFilter, ...) still return ConnectionIO
-  def getAllWithoutEmail: IO[MyDbError, List[User]] = lift(selectWith(fr"WHERE email IS NULL"))
+  def getAllWithoutEmail: IO[MyDbError, List[User]] = transact(selectWith(fr"WHERE email IS NULL"))
 
   // every public op has a protected ConnectionIO twin with a `C` suffix, for composing within one transaction
   def rename(id: Long, name: String): IO[MyDbError, Option[User]] =
-    lift(getByIdOrFailC(id).flatMap(user => updateC(user.id, UpdateUser(name = Some(name)))))
+    transact(getByIdOrFailC(id).flatMap(user => updateC(user.id, UpdateUser(name = Some(name)))))
 }
 
 val user: IO[MyDbError, Option[User]] = UserRepository.getById(1)
@@ -545,7 +545,7 @@ A `Forge` object provides:
 
 ### Mixing in the effect directly
 
-Without a `Forge` object, extend a `Generic` base class, mix in your `EffectLift` and use the `.Generic` mixins:
+Without a `Forge` object, extend a `Generic` base class, mix in your `EffectBinding` and use the `.Generic` mixins:
 
 ```scala
 import io.github.stivens.forge.AbstractRepository
@@ -571,7 +571,7 @@ Each interface has an effect-agnostic parent, e.g. `GetByIdOps.Generic[T, ID]`. 
 
 ### Errors
 
-Errors raised by forge (`EntityNotFoundError` from `getByIdOrFail`, `IllegalStateException` from `create` / `upsert`) are raised inside the `ConnectionIO`, so they reach your `lift`. Map them there.
+Errors raised by forge (`EntityNotFoundError` from `getByIdOrFail`, `IllegalStateException` from `create` / `upsert`) are raised inside the `ConnectionIO`, so they reach your `transact`. Map them there.
 
 ## Forge and Dependency Injection
 

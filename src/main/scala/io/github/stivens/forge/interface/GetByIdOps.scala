@@ -2,12 +2,12 @@ package io.github.stivens.forge.interface
 
 import cats.data.NonEmptyList
 import doobie.ConnectionIO
-import io.github.stivens.forge.ConnectionIOEffectful
-import io.github.stivens.forge.Effectful
+import io.github.stivens.forge.ConnectionIOEffect
+import io.github.stivens.forge.Effect
 import io.github.stivens.forge.util.CollectionUtil.mapNelOrEmpty
 import io.github.stivens.forge.util.CollectionUtil.orNotFound
 
-trait GetByIdOps[Entity, ID] extends GetByIdOps.Generic[Entity, ID] with ConnectionIOEffectful {
+trait GetByIdOps[Entity, ID] extends GetByIdOps.Generic[Entity, ID] with ConnectionIOEffect {
   final def getByIdOrFail(id: ID): ConnectionIO[Entity] =
     getById(id).orNotFound(id)
 
@@ -16,7 +16,7 @@ trait GetByIdOps[Entity, ID] extends GetByIdOps.Generic[Entity, ID] with Connect
 }
 
 object GetByIdOps {
-  trait Generic[Entity, ID] extends Effectful {
+  trait Generic[Entity, ID] extends Effect {
     def getById(id: ID): Eff[Option[Entity]]
     def getByIdOrFail(id: ID): Eff[Entity]
     def getManyByIds(ids: NonEmptyList[ID]): Eff[List[Entity]]

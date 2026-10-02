@@ -4,12 +4,12 @@ import cats.*
 import cats.effect.*
 import doobie.*
 import doobie.implicits.*
-import io.github.stivens.forge.EffectLift
+import io.github.stivens.forge.EffectBinding
 
 package object testsetup {
-  trait IOEffect extends EffectLift {
+  trait IOEffect extends EffectBinding {
     type Eff[A] = IO[A]
-    final protected def lift[A](io: ConnectionIO[A]): IO[A] = io.transact(transactor)
+    final protected def transact[A](io: ConnectionIO[A]): IO[A] = io.transact(transactor)
   }
 
   val transactor = Transactor.fromDriverManager[IO](
