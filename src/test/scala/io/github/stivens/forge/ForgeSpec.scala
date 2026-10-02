@@ -43,8 +43,9 @@ class ForgeSpec extends AnyFunSpec {
     }
 
     it("should conform to the forge's interface aliases") {
-      val _: RepositoryTemplate.GetByIdOps[User, Long] & RepositoryTemplate.DeleteOps[User, Long] = UserRepository
-      val _: interface.GetByIdOps.Of[IO, User, Long]                                              = UserRepository
+      val _: RepositoryTemplate.GetByIdOps[User, Long] & RepositoryTemplate.DeleteOps[User, Long]     = UserRepository
+      val _: RepositoryTemplate.CanGetById[User, Long] & RepositoryTemplate.CanDeleteMany[User, Long] = UserRepository
+      val _: interface.GetByIdOps.Of[IO, User, Long]                                                  = UserRepository
     }
 
     it("should accept hand-written implementations of the forge's interface aliases") {
@@ -53,6 +54,12 @@ class ForgeSpec extends AnyFunSpec {
         override def countAll: IO[Int]      = IO.pure(users.size)
       }
       assert(mock.countAll.unsafeRunSync() == 2)
+
+      val singleMethodMock: RepositoryTemplate.CanGetById[User, Long] = new interface.CanGetById.Generic[User, Long]
+        with RepositoryTemplate.Bound {
+        override def getById(id: Long): IO[Option[User]] = IO.pure(users.find(_.id == id))
+      }
+      assert(singleMethodMock.getById(2L).unsafeRunSync() == Some(users(1)))
     }
   }
 
