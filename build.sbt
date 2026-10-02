@@ -58,7 +58,10 @@ libraryDependencies ++= Seq(
   "org.tpolecat" %% "doobie-scalatest"      % DoobieVersion % Test,
   // scalatest
   "org.scalactic" %% "scalactic" % "3.2.20",
-  "org.scalatest" %% "scalatest" % "3.2.20" % Test
+  "org.scalatest" %% "scalatest" % "3.2.20" % Test,
+  // zio
+  "dev.zio" %% "zio"              % "2.1.26"    % Test,
+  "dev.zio" %% "zio-interop-cats" % "23.1.0.13" % Test
 )
 
 lazy val root = project
