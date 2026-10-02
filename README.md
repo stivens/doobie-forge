@@ -39,6 +39,7 @@ A sophisticated repository template for Scala 3 applications using [Doobie](http
 - **Advanced Querying**: Built-in support for filtering, sorting, pagination, and joins
 - **Doobie Integration**: Seamless integration with the Doobie functional database layer
 - **Custom Effect Types**: Public methods can return ZIO, cats-effect `IO` or any other effect instead of `ConnectionIO`
+- **Mock-Friendly Interfaces**: Depend on one-operation traits like `CanGetById` or `CanUpsertMany`, so a test double implements only what it uses
 
 ## Installation
 
@@ -541,8 +542,8 @@ A `Forge` object provides:
 
 - base classes: `Simple`, `WithIntermediateType`, `View.Simple`, `View.WithIntermediateType`
 - mixins: `IdentifiedBy`, `Filtering`, `FSP`, `Updates`, `Deletions`, `Upsertions`, `Joined`
-- interfaces for dependency injection: `GetAllOps`, `GetByIdOps`, `CreateOps`, `FilterOps`, `FSPOps`, `UpdateOps`, `DeleteOps`, `UpsertOps`, e.g. `RepositoryTemplate.GetByIdOps[User, Long]`
-- `Bound`, for hand-written implementations of those interfaces, e.g. a mock: `new interface.GetAllOps.Generic[User] with RepositoryTemplate.Bound { ... }`
+- interfaces for dependency injection: `GetAllOps`, `GetByIdOps`, `CreateOps`, `FilterOps`, `FSPOps`, `UpdateOps`, `DeleteOps`, `UpsertOps` and their one-operation `Can*` parts, e.g. `RepositoryTemplate.GetByIdOps[User, Long]` or `RepositoryTemplate.CanGetById[User, Long]`
+- `Bound`, for hand-written implementations of those interfaces, e.g. a mock: `new interface.CanGetAll.Generic[User] with RepositoryTemplate.Bound { ... }`
 
 ### Errors
 
@@ -564,6 +565,8 @@ Forge provides several interface traits that define specific capabilities:
 - `UpsertOps[T]` - Provides upsert operations (`upsert`, `upsertMany`)
 - `FilterOps[T, Filter]` - Provides filtering operations (`getManyByFilter`, `countByFilter`)
 - `FSPOps[T, Filter, Order, Cursor]` - Provides Filter-Sort-Paginate operations (`fsp`)
+
+Each `*Ops` except `FSPOps` is split into one `Can*` trait per operation, with its `List` and `NonEmptyList` overloads kept together, e.g. `GetByIdOps` = `CanGetById` & `CanGetByIdOrFail` & `CanGetManyByIds`.
 
 ### Dependency Injection Example
 
@@ -588,8 +591,8 @@ class DependencyInjectionExample extends AnyFunSpec {
     case class DirectorAverageRating(director: String, averageRating: Double)
 
     class DirectorAverageRatingRefresherService(
-        movieRepository: GetAllOps[Movie],
-        directorAverageRatingRepository: UpsertOps[DirectorAverageRating]
+        movieRepository: CanGetAll[Movie],
+        directorAverageRatingRepository: CanUpsertMany[DirectorAverageRating]
     ) {
       def refresh(): List[DirectorAverageRating] = (for {
         movies <- movieRepository.getAll
@@ -614,8 +617,8 @@ class DependencyInjectionExample extends AnyFunSpec {
           with Upsertions[DirectorAverageRating]
 
       it("should be subtypes of the required interfaces") {
-        assert(MovieRepository.isInstanceOf[GetAllOps[Movie]])
-        assert(DirectorAverageRatingRepository.isInstanceOf[UpsertOps[DirectorAverageRating]])
+        assert(MovieRepository.isInstanceOf[CanGetAll[Movie]])
+        assert(DirectorAverageRatingRepository.isInstanceOf[CanUpsertMany[DirectorAverageRating]])
 
         assert {
           DirectorAverageRatingRepository.isInstanceOf[
@@ -637,24 +640,22 @@ class DependencyInjectionExample extends AnyFunSpec {
       val upsertRequestsLog = scala.collection.mutable.ListBuffer[DirectorAverageRating]()
 
       val directorAverageRatingRefresherService = new DirectorAverageRatingRefresherService(
-        movieRepository = new GetAllOps[Movie] {
-          val movies = List(
-            Movie(1, "Movie 1", "Director 1", 5.0),
-            Movie(2, "Movie 2", "Director 1", 4.0),
-            Movie(3, "Movie 3", "Director 2", 3.0)
+        movieRepository = new CanGetAll[Movie] {
+          override def getAll: ConnectionIO[List[Movie]] = connection.pure(
+            List(
+              Movie(1, "Movie 1", "Director 1", 5.0),
+              Movie(2, "Movie 2", "Director 1", 4.0),
+              Movie(3, "Movie 3", "Director 2", 3.0)
+            )
           )
-          override def getAll: ConnectionIO[List[Movie]] = connection.pure(movies)
-          override def countAll: ConnectionIO[Int]       = connection.pure(movies.size)
         },
-        directorAverageRatingRepository = new UpsertOps[DirectorAverageRating] {
+        directorAverageRatingRepository = new CanUpsertMany[DirectorAverageRating] {
           override def upsertMany(entities: List[DirectorAverageRating]): ConnectionIO[List[DirectorAverageRating]] = {
             upsertRequestsLog.addAll(entities)
             connection.pure(entities)
           }
           override def upsertMany(entities: NonEmptyList[DirectorAverageRating]): ConnectionIO[List[DirectorAverageRating]] =
             upsertMany(entities.toList)
-          override def upsert(entity: DirectorAverageRating): ConnectionIO[DirectorAverageRating] =
-            upsertMany(List(entity)).map(_.head)
         }
       )
 
