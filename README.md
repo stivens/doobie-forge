@@ -504,9 +504,7 @@ trait ZioEffect extends EffectBinding {
 }
 ```
 
-### Binding forge to your effect (recommended)
-
-Bind forge to your effect once by extending `Forge`, then build repositories from that object exactly as you would from `AbstractRepository`:
+Then bind forge to your effect once by extending `Forge`, and build repositories from that object exactly as you would from `AbstractRepository`:
 
 ```scala
 import io.github.stivens.forge.Forge
@@ -542,32 +540,6 @@ A `Forge` object provides:
 - base classes: `Simple`, `WithIntermediateType`, `View.Simple`, `View.WithIntermediateType`
 - mixins: `IdentifiedBy`, `Filtering`, `FSP`, `Updates`, `Deletions`, `Upsertions`, `Joined`
 - interfaces for dependency injection: `GetAllOps`, `GetByIdOps`, `CreateOps`, `FilterOps`, `FSPOps`, `UpdateOps`, `DeleteOps`, `UpsertOps`, e.g. `RepositoryTemplate.GetByIdOps[User, Long]`
-
-### Mixing in the effect directly
-
-Without a `Forge` object, extend a `Generic` base class, mix in your `EffectBinding` and use the `.Generic` mixins:
-
-```scala
-import io.github.stivens.forge.AbstractRepository
-import io.github.stivens.forge.mixins.*
-
-object UserRepository
-    extends AbstractRepository.Generic[User](tableName = "users")
-    with ZioEffect
-    with IdentifiedBy.Generic[User, Long](_.id)
-    with Updates.Generic[User, Long, UpdateUser](...)
-```
-
-| ConnectionIO | Custom effect |
-|---|---|
-| `AbstractView.Simple[T]` | `AbstractView.Generic[T]` |
-| `AbstractView.WithIntermediateType[T, DbT]` | `AbstractView.Generic.WithIntermediateType[T, DbT]` |
-| `AbstractRepository.Simple[T]` | `AbstractRepository.Generic[T]` |
-| `AbstractRepository.WithIntermediateType[T, DbT]` | `AbstractRepository.Generic.WithIntermediateType[T, DbT]` |
-
-Every mixin has a `.Generic` variant with the same parameters (`IdentifiedBy.Generic`, `Filtering.Generic`, `FSP.Generic`, `Updates.Generic`, `Deletions.Generic`, `Upsertions.Generic`); the plain mixins return `ConnectionIO`, so they don't compile on a custom effect. `Joined` works with both.
-
-Each interface has an effect-agnostic parent, e.g. `GetByIdOps.Generic[T, ID]`. To depend on one with a known effect, use the `Of` alias in its companion, e.g. `GetByIdOps.Of[IO, User, Long]`.
 
 ### Errors
 
