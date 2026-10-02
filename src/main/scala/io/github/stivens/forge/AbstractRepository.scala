@@ -3,16 +3,16 @@ package io.github.stivens.forge
 import cats.data.NonEmptyList
 import doobie.*
 import doobie.Fragments.*
-import doobie.free.connection
 import doobie.implicits.toSqlInterpolator
 import io.github.stivens.forge.interface.*
+import io.github.stivens.forge.util.CollectionUtil.headOrFail
+import io.github.stivens.forge.util.CollectionUtil.mapNelOrEmpty
 
 import scala.reflect.ClassTag
 
 /**
  * Abstract base class for database repository operations that provides both read and write access to database entities.
  * 
- * This class extends AbstractView to provide read operations and implements CreateOps to provide write operations.
  * It serves as the foundation for implementing full-featured repositories that can both query and create entities
  * in the database.
  * 
@@ -46,44 +46,42 @@ abstract class AbstractRepository[Entity, DbEntity <: Product](
     tableName: String,
     protected val dbMapping: DbMapping[Entity, DbEntity]
 )(using
-    read: Read[DbEntity],
-    write: Write[DbEntity],
-    dbEntityClassTag: ClassTag[DbEntity],
-    entityClassTag: ClassTag[Entity]
+    Read[DbEntity],
+    Write[DbEntity],
+    ClassTag[DbEntity]
 ) extends AbstractView[Entity, DbEntity](
       tableName = tableName,
       dbToEntity = dbMapping.dbToEntity
     )
-    with CreateOps[Entity] {
+    with CreateOps.Generic[Entity] {
 
-  // interface implementation
+  final override def createMany(entities: NonEmptyList[Entity]): Eff[List[Entity]] = transact(createManyC(entities))
+  final override def createMany(entities: List[Entity]): Eff[List[Entity]]         = transact(createManyC(entities))
+  final override def create(entity: Entity): Eff[Entity]                           = transact(createC(entity))
 
-  /**
-   * Creates multiple entities in the database and returns the created entities with generated keys.
-   * 
-   * This method converts domain entities to database entities, inserts them into the database,
-   * and returns the created entities with any auto-generated fields (like IDs) populated.
-   * 
-   * @param entities A NonEmptyList of domain entities to create
-   * @return A ConnectionIO that yields a list of created entities with generated keys
-   */
-  final override def createMany(entities: NonEmptyList[Entity]): ConnectionIO[List[Entity]] = {
+  final override def createManyWithOnConflictDoHandle(entities: NonEmptyList[Entity]): Eff[List[Entity]] =
+    transact(createManyWithOnConflictDoHandleC(entities))
+  final override def createManyWithOnConflictDoHandle(entities: List[Entity]): Eff[List[Entity]] =
+    transact(createManyWithOnConflictDoHandleC(entities))
+
+  final protected def createManyC(entities: NonEmptyList[Entity]): ConnectionIO[List[Entity]] = {
     val dbEntities = entities.map(dbMapping.entityToDb)
     runUpdateMany(frCreateMany(dbEntities) ++ frWithReturning)
   }
 
-  /**
-   * Creates multiple entities in the database with conflict handling.
-   * 
-   * @param entities A NonEmptyList of domain entities to create
-   * @return A ConnectionIO that yields a list of successfully created entities
-   */
-  final override def createManyWithOnConflictDoHandle(entities: NonEmptyList[Entity]): ConnectionIO[List[Entity]] = {
+  final protected def createManyC(entities: List[Entity]): ConnectionIO[List[Entity]] =
+    entities.mapNelOrEmpty(createManyC(_))
+
+  final protected def createC(entity: Entity): ConnectionIO[Entity] =
+    createManyC(NonEmptyList.one(entity)).headOrFail("creation")
+
+  final protected def createManyWithOnConflictDoHandleC(entities: NonEmptyList[Entity]): ConnectionIO[List[Entity]] = {
     val dbEntities = entities.map(dbMapping.entityToDb)
     runUpdateMany(frCreateMany(dbEntities) ++ frOnConflict ++ frWithReturning)
   }
 
-  // internals
+  final protected def createManyWithOnConflictDoHandleC(entities: List[Entity]): ConnectionIO[List[Entity]] =
+    entities.mapNelOrEmpty(createManyWithOnConflictDoHandleC(_))
 
   import columnsMeta.*
 
@@ -92,9 +90,6 @@ abstract class AbstractRepository[Entity, DbEntity <: Product](
 
   protected def frCreateMany(entities: NonEmptyList[DbEntity]): Fragment =
     sql"""INSERT INTO $frTableName ($frColumns) ${values(entities)}"""
-
-  protected def frCreate(entity: DbEntity): Fragment =
-    frCreateMany(NonEmptyList.one(entity))
 
   final protected def runUpdateMany(sql: Fragment): ConnectionIO[List[Entity]] =
     sql.update
@@ -105,7 +100,17 @@ abstract class AbstractRepository[Entity, DbEntity <: Product](
 }
 
 object AbstractRepository {
-  type WithIntermediateType[Entity, DbEntity <: Product] = AbstractRepository[Entity, DbEntity]
+  abstract class WithIntermediateType[Entity, DbEntity <: Product](
+      tableName: String,
+      dbMapping: DbMapping[Entity, DbEntity]
+  )(using
+      Read[DbEntity],
+      Write[DbEntity],
+      ClassTag[DbEntity]
+  ) extends AbstractRepository[Entity, DbEntity](tableName = tableName, dbMapping = dbMapping)
+      with ConnectionIOBinding
+      with GetAllOps[Entity]
+      with CreateOps[Entity]
 
   /**
    * Simplified version of AbstractRepository for cases where the domain entity and database entity are the same.
@@ -131,11 +136,19 @@ object AbstractRepository {
       Read[Entity],
       Write[Entity],
       ClassTag[Entity]
-  ) extends AbstractRepository[Entity, Entity](
-        tableName = tableName,
-        dbMapping = new DbMapping[Entity, Entity] {
-          def dbToEntity(db: Entity): Entity     = db
-          def entityToDb(entity: Entity): Entity = entity
-        }
-      )
+  ) extends WithIntermediateType[Entity, Entity](tableName = tableName, dbMapping = identityMapping)
+
+  /** Like [[Simple]], but leaves `Eff` abstract. Prefer building repositories from a [[Forge]] over extending this directly. */
+  abstract class Generic[Entity <: Product](
+      tableName: String
+  )(using
+      Read[Entity],
+      Write[Entity],
+      ClassTag[Entity]
+  ) extends AbstractRepository[Entity, Entity](tableName = tableName, dbMapping = identityMapping)
+
+  private[forge] def identityMapping[Entity]: DbMapping[Entity, Entity] = new DbMapping[Entity, Entity] {
+    def dbToEntity(db: Entity): Entity     = db
+    def entityToDb(entity: Entity): Entity = entity
+  }
 }

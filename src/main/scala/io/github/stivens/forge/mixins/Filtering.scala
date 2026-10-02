@@ -41,29 +41,42 @@ import io.github.stivens.forge.interface.FilterOps
   *   val movies: List[Movie] = MovieRepository.getManyByFilter(filter).transact(transactor).unsafeRunSync()
   *   val count: Int = MovieRepository.countByFilter(filter).transact(transactor).unsafeRunSync()
   * }}}
-  *
-  * @note This trait requires the implementing class to extend `AbstractView[Entity, ?]`
   */
 trait Filtering[Entity, FilterType <: Product](
     protected val handleFilter: AsFragments[FilterType]
-) extends FilterOps[Entity, FilterType] {
+) extends FilterOps[Entity, FilterType]
+    with Filtering.Core[Entity, FilterType] {
   this: AbstractView[Entity, ?] =>
+}
 
-  final def getManyByFilter(filter: FilterType): ConnectionIO[List[Entity]] =
-    selectWith(frWhereFilter(filter))
+object Filtering {
 
-  final def countByFilter(filter: FilterType): ConnectionIO[Int] =
-    getCountWhere(frWhereFilter(filter))
-
-  final protected def frWhereFilter(filter: FilterType): Fragment = {
-    val filterConditions = toFilterConditions(filter)
-    NonEmptyList.fromList(filterConditions).map(whereAnd).getOrElse(fr"WHERE 1=1")
+  trait Generic[Entity, FilterType <: Product](
+      protected val handleFilter: AsFragments[FilterType]
+  ) extends Core[Entity, FilterType] {
+    this: AbstractView[Entity, ?] =>
   }
 
-  final protected def toFilterConditions(filter: FilterType): List[Fragment] =
-    handleFilter.eval(filter).flatten
+  trait Core[Entity, FilterType <: Product] extends FilterOps.Generic[Entity, FilterType] {
+    this: AbstractView[Entity, ?] =>
 
-  // Self-types and type aliases for convenience in subclasses
+    protected val handleFilter: AsFragments[FilterType]
 
-  final protected type _FilterType = FilterType
+    final override def getManyByFilter(filter: FilterType): Eff[List[Entity]] = transact(getManyByFilterC(filter))
+    final override def countByFilter(filter: FilterType): Eff[Int]            = transact(countByFilterC(filter))
+
+    final protected def getManyByFilterC(filter: FilterType): ConnectionIO[List[Entity]] =
+      selectWith(frWhereFilter(filter))
+
+    final protected def countByFilterC(filter: FilterType): ConnectionIO[Int] =
+      getCountWhere(frWhereFilter(filter))
+
+    final protected def frWhereFilter(filter: FilterType): Fragment = {
+      val filterConditions = toFilterConditions(filter)
+      NonEmptyList.fromList(filterConditions).map(whereAnd).getOrElse(fr"WHERE 1=1")
+    }
+
+    final protected def toFilterConditions(filter: FilterType): List[Fragment] =
+      handleFilter.eval(filter).flatten
+  }
 }

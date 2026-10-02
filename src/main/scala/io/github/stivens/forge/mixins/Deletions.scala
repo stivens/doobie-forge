@@ -6,6 +6,7 @@ import doobie.Fragments.*
 import doobie.implicits.toSqlInterpolator
 import io.github.stivens.forge.AbstractRepository
 import io.github.stivens.forge.interface.*
+import io.github.stivens.forge.util.CollectionUtil.mapNelOrEmpty
 
 /** A mixin trait that provides deletion capabilities for database repositories.
   *
@@ -27,15 +28,28 @@ import io.github.stivens.forge.interface.*
   *   val deletedUser: Option[User] = UserRepository.delete(1L).transact(transactor).unsafeRunSync()
   *   val deletedUsers: List[User] = UserRepository.deleteMany(List(1L, 2L)).transact(transactor).unsafeRunSync()
   * }}}
-  *
-  * @note This trait requires the implementing class to extend both `AbstractRepository[Entity, ?]` and `IdentifiedBy[Entity, EntityId]`
   */
-trait Deletions[Entity, EntityId] extends DeleteOps[Entity, EntityId] {
-  this: AbstractRepository[Entity, ?] & IdentifiedBy[Entity, EntityId] =>
+trait Deletions[Entity, EntityId] extends DeleteOps[Entity, EntityId] with Deletions.Generic[Entity, EntityId] {
+  this: AbstractRepository[Entity, ?] & IdentifiedBy.Core[Entity, EntityId] =>
+}
 
-  private given Write[_ID] = _writeId
+object Deletions {
 
-  // not `frIdsIn`: `Joined` overrides it with the table alias, which DELETE doesn't declare
-  final def deleteMany(ids: NonEmptyList[EntityId]): ConnectionIO[List[Entity]] =
-    runUpdateMany(fr"DELETE FROM $frTableName" ++ whereAnd(in(frId, ids)) ++ frWithReturning)
+  trait Generic[Entity, EntityId] extends DeleteOps.Generic[Entity, EntityId] {
+    this: AbstractRepository[Entity, ?] & IdentifiedBy.Core[Entity, EntityId] =>
+
+    final override def deleteMany(ids: NonEmptyList[EntityId]): Eff[List[Entity]] = transact(deleteManyC(ids))
+    final override def deleteMany(ids: List[EntityId]): Eff[List[Entity]]         = transact(deleteManyC(ids))
+    final override def delete(id: EntityId): Eff[Option[Entity]]                  = transact(deleteC(id))
+
+    // not `frIdsIn`: `Joined` overrides it with the table alias, which DELETE doesn't declare
+    final protected def deleteManyC(ids: NonEmptyList[EntityId]): ConnectionIO[List[Entity]] =
+      runUpdateMany(fr"DELETE FROM $frTableName" ++ whereAnd(in(frId, ids)) ++ frWithReturning)
+
+    final protected def deleteManyC(ids: List[EntityId]): ConnectionIO[List[Entity]] =
+      ids.mapNelOrEmpty(deleteManyC(_))
+
+    final protected def deleteC(id: EntityId): ConnectionIO[Option[Entity]] =
+      deleteManyC(NonEmptyList.one(id)).map(_.headOption)
+  }
 }

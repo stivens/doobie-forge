@@ -1,24 +1,18 @@
 package io.github.stivens.forge.interface
 
 import cats.data.NonEmptyList
-import doobie.ConnectionIO
-import doobie.free.connection
-import io.github.stivens.forge.EntityNotFoundError
-import io.github.stivens.forge.util.CollectionUtil.mapNelOrSucceedWith
+import io.github.stivens.forge.ConnectionIOEffect
+import io.github.stivens.forge.Effect
 
-trait GetByIdOps[Entity, ID] {
-  def getById(id: ID): ConnectionIO[Option[Entity]]
+trait GetByIdOps[Entity, ID] extends GetByIdOps.Generic[Entity, ID] with ConnectionIOEffect
 
-  final def getByIdOrFail(id: ID): ConnectionIO[Entity] = for {
-    maybeEntity <- getById(id)
-    entity <- maybeEntity match {
-      case None         => connection.raiseError(EntityNotFoundError[Entity, ID](id))
-      case Some(entity) => connection.pure(entity)
-    }
-  } yield entity
+object GetByIdOps {
+  trait Generic[Entity, ID] extends Effect {
+    def getById(id: ID): Eff[Option[Entity]]
+    def getByIdOrFail(id: ID): Eff[Entity]
+    def getManyByIds(ids: NonEmptyList[ID]): Eff[List[Entity]]
+    def getManyByIds(ids: List[ID]): Eff[List[Entity]]
+  }
 
-  def getManyByIds(ids: NonEmptyList[ID]): ConnectionIO[List[Entity]]
-
-  final def getManyByIds(ids: List[ID]): ConnectionIO[List[Entity]] =
-    ids.mapNelOrSucceedWith(idsNel => getManyByIds(idsNel), default = List.empty)
+  type Of[F[_], Entity, ID] = Generic[Entity, ID] { type Eff[A] = F[A] }
 }

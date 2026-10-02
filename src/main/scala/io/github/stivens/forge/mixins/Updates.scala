@@ -7,7 +7,7 @@ import doobie.implicits.toSqlInterpolator
 import io.github.stivens.forge.AbstractRepository
 import io.github.stivens.forge.AsFragments
 import io.github.stivens.forge.interface.UpdateOps
-import io.github.stivens.forge.util.CollectionUtil.mapNelOrSucceedWith
+import io.github.stivens.forge.util.CollectionUtil.mapNelOrEmpty
 
 /** A mixin trait that provides update capabilities for database repositories.
   *
@@ -38,27 +38,45 @@ import io.github.stivens.forge.util.CollectionUtil.mapNelOrSucceedWith
   *   val updatedUser: Option[User] = UserRepository.update(1L, update).transact(transactor).unsafeRunSync()
   *   val updatedUsers: List[User] = UserRepository.updateMany(List(1L, 2L), update).transact(transactor).unsafeRunSync()
   * }}}
-  *
-  * @note This trait requires the implementing class to extend both `AbstractRepository[Entity, ?]` and `IdentifiedBy[Entity, ID]`
   */
 trait Updates[Entity, ID, UpdateType <: Product](
     protected val handleUpdate: AsFragments[UpdateType]
-) extends UpdateOps[Entity, ID, UpdateType] {
-  this: AbstractRepository[Entity, ?] & IdentifiedBy[Entity, ID] =>
+) extends UpdateOps[Entity, ID, UpdateType]
+    with Updates.Core[Entity, ID, UpdateType] {
+  this: AbstractRepository[Entity, ?] & IdentifiedBy.Core[Entity, ID] =>
+}
 
-  private given Write[_ID] = _writeId
+object Updates {
 
-  protected def frUpdateTable: Fragment = fr"UPDATE $frTableName"
+  trait Generic[Entity, ID, UpdateType <: Product](
+      protected val handleUpdate: AsFragments[UpdateType]
+  ) extends Core[Entity, ID, UpdateType] {
+    this: AbstractRepository[Entity, ?] & IdentifiedBy.Core[Entity, ID] =>
+  }
 
-  final def updateMany(ids: NonEmptyList[ID], update: UpdateType): ConnectionIO[List[Entity]] =
-    evalUpdate(update).mapNelOrSucceedWith(
-      updateFragments =>
-        runUpdateMany {
-          frUpdateTable ++ set(updateFragments) ++ whereAnd(in(frId, ids)) ++ frWithReturning
-        },
-      default = List.empty
-    )
+  trait Core[Entity, ID, UpdateType <: Product] extends UpdateOps.Generic[Entity, ID, UpdateType] {
+    this: AbstractRepository[Entity, ?] & IdentifiedBy.Core[Entity, ID] =>
 
-  private def evalUpdate(update: UpdateType): List[Fragment] =
-    handleUpdate.eval(update).flatten
+    protected val handleUpdate: AsFragments[UpdateType]
+
+    protected def frUpdateTable: Fragment = fr"UPDATE $frTableName"
+
+    final override def updateMany(ids: NonEmptyList[ID], update: UpdateType): Eff[List[Entity]] = transact(updateManyC(ids, update))
+    final override def updateMany(ids: List[ID], update: UpdateType): Eff[List[Entity]]         = transact(updateManyC(ids, update))
+    final override def update(id: ID, update: UpdateType): Eff[Option[Entity]]                  = transact(updateC(id, update))
+
+    final protected def updateManyC(ids: NonEmptyList[ID], update: UpdateType): ConnectionIO[List[Entity]] =
+      evalUpdate(update).mapNelOrEmpty { updateFragments =>
+        runUpdateMany(frUpdateTable ++ set(updateFragments) ++ whereAnd(in(frId, ids)) ++ frWithReturning)
+      }
+
+    final protected def updateManyC(ids: List[ID], update: UpdateType): ConnectionIO[List[Entity]] =
+      ids.mapNelOrEmpty(updateManyC(_, update))
+
+    final protected def updateC(id: ID, update: UpdateType): ConnectionIO[Option[Entity]] =
+      updateManyC(NonEmptyList.one(id), update).map(_.headOption)
+
+    private def evalUpdate(update: UpdateType): List[Fragment] =
+      handleUpdate.eval(update).flatten
+  }
 }

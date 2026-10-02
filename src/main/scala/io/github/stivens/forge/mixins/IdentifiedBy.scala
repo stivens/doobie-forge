@@ -6,6 +6,8 @@ import doobie.Fragments.*
 import doobie.implicits.toSqlInterpolator
 import io.github.stivens.forge.AbstractView
 import io.github.stivens.forge.interface.*
+import io.github.stivens.forge.util.CollectionUtil.mapNelOrEmpty
+import io.github.stivens.forge.util.CollectionUtil.orNotFound
 import io.github.stivens.forge.util.CollectionUtil.toMapBy
 
 /** A mixin trait that provides entity identification capabilities for database views.
@@ -30,34 +32,58 @@ import io.github.stivens.forge.util.CollectionUtil.toMapBy
   *   val user: Option[User] = UserRepository.getById(1L).transact(transactor).unsafeRunSync()
   *   val users: List[User] = UserRepository.getManyByIds(List(1L, 2L, 3L)).transact(transactor).unsafeRunSync()
   * }}}
-  *
-  * @note This trait requires the implementing class to extend `AbstractView[Entity, ?]`
   */
 trait IdentifiedBy[Entity, ID](
     protected val extractId: Entity => ID,
     protected val frId: Fragment = fr"id"
 )(using
-    writeId: Write[ID]
-) extends GetByIdOps[Entity, ID] {
+    protected val _writeId: Write[ID]
+) extends GetByIdOps[Entity, ID]
+    with IdentifiedBy.Core[Entity, ID] {
   this: AbstractView[Entity, ?] =>
+}
 
-  // interface implementation
+object IdentifiedBy {
 
-  final override def getManyByIds(ids: NonEmptyList[ID]): ConnectionIO[List[Entity]] =
-    runSelect(frSelectColumnsFromTable ++ whereAnd(frIdsIn(ids)))
+  trait Generic[Entity, ID](
+      protected val extractId: Entity => ID,
+      protected val frId: Fragment = fr"id"
+  )(using
+      protected val _writeId: Write[ID]
+  ) extends Core[Entity, ID] {
+    this: AbstractView[Entity, ?] =>
+  }
 
-  final def getManyByIdsToMap(ids: List[ID]): ConnectionIO[Map[ID, Entity]] =
-    getManyByIds(ids).map(_.toMapBy(extractId))
+  trait Core[Entity, ID] extends GetByIdOps.Generic[Entity, ID] {
+    this: AbstractView[Entity, ?] =>
 
-  final override def getById(id: ID): ConnectionIO[Option[Entity]] =
-    getManyByIds(NonEmptyList.one(id)).map(_.headOption)
+    protected val extractId: Entity => ID
+    protected val frId: Fragment
+    protected given _writeId: Write[ID]
 
-  // internals
+    final override def getManyByIds(ids: NonEmptyList[ID]): Eff[List[Entity]] = transact(getManyByIdsC(ids))
+    final override def getManyByIds(ids: List[ID]): Eff[List[Entity]]         = transact(getManyByIdsC(ids))
+    final def getManyByIdsToMap(ids: List[ID]): Eff[Map[ID, Entity]]          = transact(getManyByIdsToMapC(ids))
+    final override def getById(id: ID): Eff[Option[Entity]]                   = transact(getByIdC(id))
+    final override def getByIdOrFail(id: ID): Eff[Entity]                     = transact(getByIdOrFailC(id))
 
-  protected def frIdsIn(ids: NonEmptyList[ID]): Fragment = in(frId, ids)
+    final protected def getManyByIdsC(ids: NonEmptyList[ID]): ConnectionIO[List[Entity]] =
+      runSelect(frSelectColumnsFromTable ++ whereAnd(frIdsIn(ids)))
 
-  // Self-types and type aliases for convenience in subclasses
+    final protected def getManyByIdsC(ids: List[ID]): ConnectionIO[List[Entity]] =
+      ids.mapNelOrEmpty(getManyByIdsC(_))
 
-  final protected type _ID = ID
-  final protected val _writeId = writeId
+    final protected def getManyByIdsToMapC(ids: List[ID]): ConnectionIO[Map[ID, Entity]] =
+      getManyByIdsC(ids).map(_.toMapBy(extractId))
+
+    final protected def getByIdC(id: ID): ConnectionIO[Option[Entity]] =
+      getManyByIdsC(NonEmptyList.one(id)).map(_.headOption)
+
+    final protected def getByIdOrFailC(id: ID): ConnectionIO[Entity] =
+      getByIdC(id).orNotFound(id)
+
+    protected def frIdsIn(ids: NonEmptyList[ID]): Fragment = in(frId, ids)
+
+    final protected type _ID = ID
+  }
 }

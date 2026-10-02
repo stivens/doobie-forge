@@ -26,29 +26,18 @@ abstract class AbstractView[Entity, DbEntity <: Product](
     final protected val dbToEntity: DbEntity => Entity
 )(using
     read: Read[DbEntity],
-    dbEntityClassTag: ClassTag[DbEntity],
-    entityClassTag: ClassTag[Entity]
-) extends GetAllOps[Entity] {
+    dbEntityClassTag: ClassTag[DbEntity]
+) extends GetAllOps.Generic[Entity]
+    with EffectBinding {
 
-  // interface implementation
+  final override def getAll: Eff[List[Entity]] = transact(getAllC)
+  final override def countAll: Eff[Int]        = transact(countAllC)
 
-  /**
-   * Retrieves all entities from the database table.
-   * 
-   * @return A ConnectionIO that yields a list of all entities in the table
-   */
-  final override def getAll: ConnectionIO[List[Entity]] =
+  final protected def getAllC: ConnectionIO[List[Entity]] =
     selectWith(fragment = Fragment.empty)
 
-  /**
-   * Counts the total number of entities in the database table.
-   * 
-   * @return A ConnectionIO that yields the count of all entities in the table
-   */
-  final override def countAll: ConnectionIO[Int] =
+  final protected def countAllC: ConnectionIO[Int] =
     getCountWhere(whereClause = Fragment.empty)
-
-  // internals
 
   protected object columnsMeta extends ColumnsMeta[DbEntity]()
   import columnsMeta.*
@@ -76,18 +65,19 @@ abstract class AbstractView[Entity, DbEntity <: Product](
       .stream
       .map(dbToEntity)
 
-  // Self-types and type aliases for convenience in subclasses
-
-  final protected type _Entity   = Entity
-  final protected type _DbEntity = DbEntity
-
-  final protected val _entityClassTag: ClassTag[Entity]     = entityClassTag
-  final protected val _dbEntityClassTag: ClassTag[DbEntity] = dbEntityClassTag
-  final protected val _readDbEntity: Read[DbEntity]         = read
+  final protected val _readDbEntity: Read[DbEntity] = read
 }
 
 object AbstractView {
-  type WithIntermediateType[Entity, DbEntity <: Product] = AbstractView[Entity, DbEntity]
+  abstract class WithIntermediateType[Entity, DbEntity <: Product](
+      tableName: String,
+      dbToEntity: DbEntity => Entity
+  )(using
+      Read[DbEntity],
+      ClassTag[DbEntity]
+  ) extends AbstractView[Entity, DbEntity](tableName = tableName, dbToEntity = dbToEntity)
+      with ConnectionIOBinding
+      with GetAllOps[Entity]
 
   /**
    * Simplified version of AbstractView for cases where the domain entity and database entity are the same.
@@ -99,6 +89,14 @@ object AbstractView {
    * @param tableName The database table name as a Doobie Fragment
    */
   abstract class Simple[Entity <: Product](
+      tableName: String
+  )(using
+      Read[Entity],
+      ClassTag[Entity]
+  ) extends WithIntermediateType[Entity, Entity](tableName = tableName, dbToEntity = identity)
+
+  /** Like [[Simple]], but leaves `Eff` abstract. Prefer building repositories from a [[Forge]] over extending this directly. */
+  abstract class Generic[Entity <: Product](
       tableName: String
   )(using
       Read[Entity],

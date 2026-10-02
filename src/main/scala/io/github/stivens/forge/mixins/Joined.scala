@@ -43,7 +43,6 @@ import io.github.stivens.forge.AbstractView
   *   val orders: List[Order] = OrderView.getManyByFilter(filter).transact(transactor).unsafeRunSync()
   * }}}
   *
-  * @note This trait requires the implementing class to extend both `AbstractView[?, ?]` and `IdentifiedBy[?, ?]`
   * @note Uses SELECT DISTINCT to handle potential duplicates from JOIN operations
   * @note When using ORDER BY on joined columns, those columns must be included in the SELECT list
   */
@@ -52,9 +51,7 @@ trait Joined(
     frJoin: Fragment,
     withSortedByJoinedColumns: Option[Fragment] = None // for SELECT DISTINCT, ORDER BY expressions must appear in select list
 ) {
-  this: AbstractView[?, ?] & IdentifiedBy[?, ?] =>
-
-  private given Write[_ID] = _writeId
+  this: AbstractView[?, ?] & IdentifiedBy.Core[?, ?] =>
 
   final protected val frTableNameWithAlias = fr"$frTableName AS $frAlias"
   final protected val frIdWithAlias        = fr"$frAlias.$frId"

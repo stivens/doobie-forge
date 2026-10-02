@@ -25,6 +25,7 @@ A sophisticated repository template for Scala 3 applications using [Doobie](http
   - [Updates](#updates)
   - [Deletions](#deletions)
   - [Upsertions](#upsertions)
+- [Custom effect types](#custom-effect-types)
 - [Forge and Dependency Injection](#forge-and-dependency-injection)
 - [Examples](#examples)
 - [Contributing](#contributing)
@@ -37,6 +38,7 @@ A sophisticated repository template for Scala 3 applications using [Doobie](http
 - **Flexible Entity Mapping**: Support for both simple and complex domain-to-database mappings
 - **Advanced Querying**: Built-in support for filtering, sorting, pagination, and joins
 - **Doobie Integration**: Seamless integration with the Doobie functional database layer
+- **Custom Effect Types**: Public methods can return ZIO, cats-effect `IO` or any other effect instead of `ConnectionIO`
 
 ## Installation
 
@@ -485,6 +487,67 @@ val user = User(id = 1, name = "John Doe", email = "john.doe@example.com")
 val upsertedUser: ConnectionIO[User] = UserRepository.upsert(user)
 ```
 
+## Custom effect types
+
+`Simple` and `WithIntermediateType` repositories and views return `ConnectionIO`. To return another effect (ZIO, cats-effect `IO`, ...), define an `EffectBinding`, which converts the `ConnectionIO` that forge builds internally into your effect:
+
+```scala
+import doobie.*
+import doobie.implicits.*
+import io.github.stivens.forge.EffectBinding
+import zio.Task
+import zio.interop.catz.* // "dev.zio" %% "zio-interop-cats"
+
+val transactor: Transactor[Task] = ...
+
+trait ZioEffect extends EffectBinding {
+  final type Eff[A] = Task[A]
+  final protected def transact[A](io: ConnectionIO[A]): Task[A] = io.transact(transactor)
+}
+```
+
+Then bind forge to your effect once by extending `Forge`, and build repositories from that object exactly as you would from `AbstractRepository`:
+
+```scala
+import io.github.stivens.forge.Forge
+
+object RepositoryTemplate extends Forge with ZioEffect
+```
+
+```scala
+import doobie.*
+import doobie.implicits.*
+import zio.Task
+import my.project.RepositoryTemplate
+import my.project.RepositoryTemplate.*
+
+object UserRepository
+    extends RepositoryTemplate.Simple[User](tableName = "users")
+    with IdentifiedBy[User, Long](_.id)
+    with Updates[User, Long, UpdateUser](...) {
+
+  // protected helpers (selectWith, runSelect, runUpdateMany, frWhereFilter, ...) still return ConnectionIO
+  def getAllWithoutEmail: Task[List[User]] = transact(selectWith(fr"WHERE email IS NULL"))
+
+  // every public op has a protected ConnectionIO twin with a `C` suffix, for composing within one transaction
+  def rename(id: Long, name: String): Task[Option[User]] =
+    transact(getByIdOrFailC(id).flatMap(user => updateC(user.id, UpdateUser(name = Some(name)))))
+}
+
+val user: Task[Option[User]] = UserRepository.getById(1)
+```
+
+A `Forge` object provides:
+
+- base classes: `Simple`, `WithIntermediateType`, `View.Simple`, `View.WithIntermediateType`
+- mixins: `IdentifiedBy`, `Filtering`, `FSP`, `Updates`, `Deletions`, `Upsertions`, `Joined`
+- interfaces for dependency injection: `GetAllOps`, `GetByIdOps`, `CreateOps`, `FilterOps`, `FSPOps`, `UpdateOps`, `DeleteOps`, `UpsertOps`, e.g. `RepositoryTemplate.GetByIdOps[User, Long]`
+- `Bound`, for hand-written implementations of those interfaces, e.g. a mock: `new interface.GetAllOps.Generic[User] with RepositoryTemplate.Bound { ... }`
+
+### Errors
+
+Errors raised by forge (`EntityNotFoundError` from `getByIdOrFail`, `IllegalStateException` from `create` / `upsert`) are raised inside the `ConnectionIO`, so they reach your `transact` and fail the returned effect. To get a typed error channel, map them there (e.g. `.refineOrDie`).
+
 ## Forge and Dependency Injection
 
 Forge's interface-based design makes it perfect for dependency injection. You can easily swap implementations for testing.
@@ -584,10 +647,14 @@ class DependencyInjectionExample extends AnyFunSpec {
           override def countAll: ConnectionIO[Int]       = connection.pure(movies.size)
         },
         directorAverageRatingRepository = new UpsertOps[DirectorAverageRating] {
-          override def upsertMany(entities: NonEmptyList[DirectorAverageRating]): ConnectionIO[List[DirectorAverageRating]] = {
-            upsertRequestsLog.addAll(entities.toList)
-            connection.pure(entities.toList)
+          override def upsertMany(entities: List[DirectorAverageRating]): ConnectionIO[List[DirectorAverageRating]] = {
+            upsertRequestsLog.addAll(entities)
+            connection.pure(entities)
           }
+          override def upsertMany(entities: NonEmptyList[DirectorAverageRating]): ConnectionIO[List[DirectorAverageRating]] =
+            upsertMany(entities.toList)
+          override def upsert(entity: DirectorAverageRating): ConnectionIO[DirectorAverageRating] =
+            upsertMany(List(entity)).map(_.head)
         }
       )
 
