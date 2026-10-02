@@ -1,19 +1,10 @@
 package io.github.stivens.forge.interface
 
 import cats.data.NonEmptyList
-import doobie.ConnectionIO
 import io.github.stivens.forge.ConnectionIOEffect
 import io.github.stivens.forge.Effect
-import io.github.stivens.forge.util.CollectionUtil.headOrFail
-import io.github.stivens.forge.util.CollectionUtil.mapNelOrEmpty
 
-trait UpsertOps[Entity] extends UpsertOps.Generic[Entity] with ConnectionIOEffect {
-  def upsertMany(entities: List[Entity]): ConnectionIO[List[Entity]] =
-    entities.mapNelOrEmpty(upsertMany(_))
-
-  def upsert(entity: Entity): ConnectionIO[Entity] =
-    upsertMany(NonEmptyList.one(entity)).headOrFail("upsert")
-}
+trait UpsertOps[Entity] extends UpsertOps.Generic[Entity] with ConnectionIOEffect
 
 object UpsertOps {
   trait Generic[Entity] extends Effect {

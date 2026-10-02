@@ -1,19 +1,10 @@
 package io.github.stivens.forge.interface
 
 import cats.data.NonEmptyList
-import doobie.ConnectionIO
 import io.github.stivens.forge.ConnectionIOEffect
 import io.github.stivens.forge.Effect
-import io.github.stivens.forge.util.CollectionUtil.mapNelOrEmpty
-import io.github.stivens.forge.util.CollectionUtil.orNotFound
 
-trait GetByIdOps[Entity, ID] extends GetByIdOps.Generic[Entity, ID] with ConnectionIOEffect {
-  def getByIdOrFail(id: ID): ConnectionIO[Entity] =
-    getById(id).orNotFound(id)
-
-  def getManyByIds(ids: List[ID]): ConnectionIO[List[Entity]] =
-    ids.mapNelOrEmpty(getManyByIds(_))
-}
+trait GetByIdOps[Entity, ID] extends GetByIdOps.Generic[Entity, ID] with ConnectionIOEffect
 
 object GetByIdOps {
   trait Generic[Entity, ID] extends Effect {

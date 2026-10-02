@@ -1,18 +1,10 @@
 package io.github.stivens.forge.interface
 
 import cats.data.NonEmptyList
-import doobie.ConnectionIO
 import io.github.stivens.forge.ConnectionIOEffect
 import io.github.stivens.forge.Effect
-import io.github.stivens.forge.util.CollectionUtil.mapNelOrEmpty
 
-trait UpdateOps[Entity, ID, UpdateType] extends UpdateOps.Generic[Entity, ID, UpdateType] with ConnectionIOEffect {
-  def updateMany(ids: List[ID], update: UpdateType): ConnectionIO[List[Entity]] =
-    ids.mapNelOrEmpty(updateMany(_, update))
-
-  def update(id: ID, update: UpdateType): ConnectionIO[Option[Entity]] =
-    updateMany(NonEmptyList.one(id), update).map(_.headOption)
-}
+trait UpdateOps[Entity, ID, UpdateType] extends UpdateOps.Generic[Entity, ID, UpdateType] with ConnectionIOEffect
 
 object UpdateOps {
   trait Generic[Entity, ID, UpdateType] extends Effect {

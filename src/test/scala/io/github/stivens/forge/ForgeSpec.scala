@@ -46,6 +46,14 @@ class ForgeSpec extends AnyFunSpec {
       val _: RepositoryTemplate.GetByIdOps[User, Long] & RepositoryTemplate.DeleteOps[User, Long] = UserRepository
       val _: interface.GetByIdOps.Of[IO, User, Long]                                              = UserRepository
     }
+
+    it("should accept hand-written implementations of the forge's interface aliases") {
+      val mock: RepositoryTemplate.GetAllOps[User] = new interface.GetAllOps.Generic[User] with RepositoryTemplate.Bound {
+        override def getAll: IO[List[User]] = IO.pure(users)
+        override def countAll: IO[Int]      = IO.pure(users.size)
+      }
+      assert(mock.countAll.unsafeRunSync() == 2)
+    }
   }
 
   describe("given a view built from a Forge") {

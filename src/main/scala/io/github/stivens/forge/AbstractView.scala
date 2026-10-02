@@ -26,8 +26,7 @@ abstract class AbstractView[Entity, DbEntity <: Product](
     final protected val dbToEntity: DbEntity => Entity
 )(using
     read: Read[DbEntity],
-    dbEntityClassTag: ClassTag[DbEntity],
-    entityClassTag: ClassTag[Entity]
+    dbEntityClassTag: ClassTag[DbEntity]
 ) extends GetAllOps.Generic[Entity]
     with EffectBinding {
 
@@ -66,12 +65,7 @@ abstract class AbstractView[Entity, DbEntity <: Product](
       .stream
       .map(dbToEntity)
 
-  final protected type _Entity   = Entity
-  final protected type _DbEntity = DbEntity
-
-  final protected val _entityClassTag: ClassTag[Entity]     = entityClassTag
-  final protected val _dbEntityClassTag: ClassTag[DbEntity] = dbEntityClassTag
-  final protected val _readDbEntity: Read[DbEntity]         = read
+  final protected val _readDbEntity: Read[DbEntity] = read
 }
 
 object AbstractView {
@@ -80,8 +74,7 @@ object AbstractView {
       dbToEntity: DbEntity => Entity
   )(using
       Read[DbEntity],
-      ClassTag[DbEntity],
-      ClassTag[Entity]
+      ClassTag[DbEntity]
   ) extends AbstractView[Entity, DbEntity](tableName = tableName, dbToEntity = dbToEntity)
       with ConnectionIOBinding
       with GetAllOps[Entity]
@@ -109,8 +102,4 @@ object AbstractView {
       Read[Entity],
       ClassTag[Entity]
   ) extends AbstractView[Entity, Entity](tableName = tableName, dbToEntity = identity)
-
-  object Generic {
-    type WithIntermediateType[Entity, DbEntity <: Product] = AbstractView[Entity, DbEntity]
-  }
 }

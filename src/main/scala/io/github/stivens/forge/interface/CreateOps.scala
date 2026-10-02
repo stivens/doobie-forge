@@ -1,22 +1,10 @@
 package io.github.stivens.forge.interface
 
 import cats.data.NonEmptyList
-import doobie.ConnectionIO
 import io.github.stivens.forge.ConnectionIOEffect
 import io.github.stivens.forge.Effect
-import io.github.stivens.forge.util.CollectionUtil.headOrFail
-import io.github.stivens.forge.util.CollectionUtil.mapNelOrEmpty
 
-trait CreateOps[Entity] extends CreateOps.Generic[Entity] with ConnectionIOEffect {
-  override def createMany(entities: List[Entity]): ConnectionIO[List[Entity]] =
-    entities.mapNelOrEmpty(createMany(_))
-
-  override def create(entity: Entity): ConnectionIO[Entity] =
-    createMany(NonEmptyList.one(entity)).headOrFail("creation")
-
-  override def createManyWithOnConflictDoHandle(entities: List[Entity]): ConnectionIO[List[Entity]] =
-    entities.mapNelOrEmpty(createManyWithOnConflictDoHandle(_))
-}
+trait CreateOps[Entity] extends CreateOps.Generic[Entity] with ConnectionIOEffect
 
 object CreateOps {
   trait Generic[Entity] extends Effect {

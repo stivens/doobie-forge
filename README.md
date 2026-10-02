@@ -542,6 +542,7 @@ A `Forge` object provides:
 - base classes: `Simple`, `WithIntermediateType`, `View.Simple`, `View.WithIntermediateType`
 - mixins: `IdentifiedBy`, `Filtering`, `FSP`, `Updates`, `Deletions`, `Upsertions`, `Joined`
 - interfaces for dependency injection: `GetAllOps`, `GetByIdOps`, `CreateOps`, `FilterOps`, `FSPOps`, `UpdateOps`, `DeleteOps`, `UpsertOps`, e.g. `RepositoryTemplate.GetByIdOps[User, Long]`
+- `Bound`, for hand-written implementations of those interfaces, e.g. a mock: `new interface.GetAllOps.Generic[User] with RepositoryTemplate.Bound { ... }`
 
 ### Errors
 
@@ -646,10 +647,14 @@ class DependencyInjectionExample extends AnyFunSpec {
           override def countAll: ConnectionIO[Int]       = connection.pure(movies.size)
         },
         directorAverageRatingRepository = new UpsertOps[DirectorAverageRating] {
-          override def upsertMany(entities: NonEmptyList[DirectorAverageRating]): ConnectionIO[List[DirectorAverageRating]] = {
-            upsertRequestsLog.addAll(entities.toList)
-            connection.pure(entities.toList)
+          override def upsertMany(entities: List[DirectorAverageRating]): ConnectionIO[List[DirectorAverageRating]] = {
+            upsertRequestsLog.addAll(entities)
+            connection.pure(entities)
           }
+          override def upsertMany(entities: NonEmptyList[DirectorAverageRating]): ConnectionIO[List[DirectorAverageRating]] =
+            upsertMany(entities.toList)
+          override def upsert(entity: DirectorAverageRating): ConnectionIO[DirectorAverageRating] =
+            upsertMany(List(entity)).map(_.head)
         }
       )
 

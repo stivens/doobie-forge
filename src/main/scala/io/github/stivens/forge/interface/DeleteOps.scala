@@ -1,18 +1,10 @@
 package io.github.stivens.forge.interface
 
 import cats.data.NonEmptyList
-import doobie.ConnectionIO
 import io.github.stivens.forge.ConnectionIOEffect
 import io.github.stivens.forge.Effect
-import io.github.stivens.forge.util.CollectionUtil.mapNelOrEmpty
 
-trait DeleteOps[Entity, ID] extends DeleteOps.Generic[Entity, ID] with ConnectionIOEffect {
-  def deleteMany(ids: List[ID]): ConnectionIO[List[Entity]] =
-    ids.mapNelOrEmpty(deleteMany(_))
-
-  def delete(id: ID): ConnectionIO[Option[Entity]] =
-    deleteMany(NonEmptyList.one(id)).map(_.headOption)
-}
+trait DeleteOps[Entity, ID] extends DeleteOps.Generic[Entity, ID] with ConnectionIOEffect
 
 object DeleteOps {
   trait Generic[Entity, ID] extends Effect {

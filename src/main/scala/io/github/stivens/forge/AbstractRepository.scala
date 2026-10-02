@@ -46,10 +46,9 @@ abstract class AbstractRepository[Entity, DbEntity <: Product](
     tableName: String,
     protected val dbMapping: DbMapping[Entity, DbEntity]
 )(using
-    read: Read[DbEntity],
-    write: Write[DbEntity],
-    dbEntityClassTag: ClassTag[DbEntity],
-    entityClassTag: ClassTag[Entity]
+    Read[DbEntity],
+    Write[DbEntity],
+    ClassTag[DbEntity]
 ) extends AbstractView[Entity, DbEntity](
       tableName = tableName,
       dbToEntity = dbMapping.dbToEntity
@@ -57,13 +56,12 @@ abstract class AbstractRepository[Entity, DbEntity <: Product](
     with CreateOps.Generic[Entity] {
 
   final override def createMany(entities: NonEmptyList[Entity]): Eff[List[Entity]] = transact(createManyC(entities))
+  final override def createMany(entities: List[Entity]): Eff[List[Entity]]         = transact(createManyC(entities))
+  final override def create(entity: Entity): Eff[Entity]                           = transact(createC(entity))
 
   final override def createManyWithOnConflictDoHandle(entities: NonEmptyList[Entity]): Eff[List[Entity]] =
     transact(createManyWithOnConflictDoHandleC(entities))
-
-  override def createMany(entities: List[Entity]): Eff[List[Entity]] = transact(createManyC(entities))
-  override def create(entity: Entity): Eff[Entity]                   = transact(createC(entity))
-  override def createManyWithOnConflictDoHandle(entities: List[Entity]): Eff[List[Entity]] =
+  final override def createManyWithOnConflictDoHandle(entities: List[Entity]): Eff[List[Entity]] =
     transact(createManyWithOnConflictDoHandleC(entities))
 
   final protected def createManyC(entities: NonEmptyList[Entity]): ConnectionIO[List[Entity]] = {
@@ -93,9 +91,6 @@ abstract class AbstractRepository[Entity, DbEntity <: Product](
   protected def frCreateMany(entities: NonEmptyList[DbEntity]): Fragment =
     sql"""INSERT INTO $frTableName ($frColumns) ${values(entities)}"""
 
-  protected def frCreate(entity: DbEntity): Fragment =
-    frCreateMany(NonEmptyList.one(entity))
-
   final protected def runUpdateMany(sql: Fragment): ConnectionIO[List[Entity]] =
     sql.update
       .withGeneratedKeys[DbEntity](columnsList*)
@@ -111,8 +106,7 @@ object AbstractRepository {
   )(using
       Read[DbEntity],
       Write[DbEntity],
-      ClassTag[DbEntity],
-      ClassTag[Entity]
+      ClassTag[DbEntity]
   ) extends AbstractRepository[Entity, DbEntity](tableName = tableName, dbMapping = dbMapping)
       with ConnectionIOBinding
       with GetAllOps[Entity]
@@ -152,10 +146,6 @@ object AbstractRepository {
       Write[Entity],
       ClassTag[Entity]
   ) extends AbstractRepository[Entity, Entity](tableName = tableName, dbMapping = identityMapping)
-
-  object Generic {
-    type WithIntermediateType[Entity, DbEntity <: Product] = AbstractRepository[Entity, DbEntity]
-  }
 
   private[forge] def identityMapping[Entity]: DbMapping[Entity, Entity] = new DbMapping[Entity, Entity] {
     def dbToEntity(db: Entity): Entity     = db

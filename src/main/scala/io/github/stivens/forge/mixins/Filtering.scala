@@ -78,7 +78,5 @@ object Filtering {
 
     final protected def toFilterConditions(filter: FilterType): List[Fragment] =
       handleFilter.eval(filter).flatten
-
-    final protected type _FilterType = FilterType
   }
 }

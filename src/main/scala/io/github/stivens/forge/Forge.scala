@@ -7,7 +7,7 @@ import scala.reflect.ClassTag
 /** Forge's base classes, mixins and interfaces bound to one effect type, e.g. `object RepositoryTemplate extends Forge with ZioEffect`. */
 trait Forge extends EffectBinding { self =>
 
-  private[forge] trait BoundEffect extends EffectBinding {
+  trait Bound extends EffectBinding {
     final type Eff[A] = self.Eff[A]
     final protected def transact[A](io: ConnectionIO[A]): Eff[A] = self.transact(io)
   }
@@ -26,10 +26,9 @@ trait Forge extends EffectBinding { self =>
   )(using
       Read[DbEntity],
       Write[DbEntity],
-      ClassTag[DbEntity],
-      ClassTag[Entity]
+      ClassTag[DbEntity]
   ) extends AbstractRepository[Entity, DbEntity](tableName = tableName, dbMapping = dbMapping)
-      with BoundEffect
+      with Bound
 
   object View {
     abstract class Simple[Entity <: Product](
@@ -44,10 +43,9 @@ trait Forge extends EffectBinding { self =>
         dbToEntity: DbEntity => Entity
     )(using
         Read[DbEntity],
-        ClassTag[DbEntity],
-        ClassTag[Entity]
+        ClassTag[DbEntity]
     ) extends AbstractView[Entity, DbEntity](tableName = tableName, dbToEntity = dbToEntity)
-        with BoundEffect
+        with Bound
   }
 
   type IdentifiedBy[Entity, ID]                 = mixins.IdentifiedBy.Generic[Entity, ID]
