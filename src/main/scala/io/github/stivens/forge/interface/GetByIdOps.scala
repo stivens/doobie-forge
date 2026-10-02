@@ -8,10 +8,10 @@ import io.github.stivens.forge.util.CollectionUtil.mapNelOrEmpty
 import io.github.stivens.forge.util.CollectionUtil.orNotFound
 
 trait GetByIdOps[Entity, ID] extends GetByIdOps.Generic[Entity, ID] with ConnectionIOEffect {
-  final def getByIdOrFail(id: ID): ConnectionIO[Entity] =
+  def getByIdOrFail(id: ID): ConnectionIO[Entity] =
     getById(id).orNotFound(id)
 
-  final def getManyByIds(ids: List[ID]): ConnectionIO[List[Entity]] =
+  def getManyByIds(ids: List[ID]): ConnectionIO[List[Entity]] =
     ids.mapNelOrEmpty(getManyByIds(_))
 }
 

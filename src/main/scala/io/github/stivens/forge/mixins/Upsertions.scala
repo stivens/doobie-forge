@@ -28,26 +28,19 @@ import io.github.stivens.forge.util.CollectionUtil.headOrFail
   *   val user = User(id = 1, name = "John Doe", email = "john.doe@example.com")
   *   val upsertedUser: User = UserRepository.upsert(user).transact(transactor).unsafeRunSync()
   * }}}
-  *
-  * @note This trait requires the implementing class to extend both `AbstractRepository[Entity, ?]` and `IdentifiedBy[Entity, ?]`
   */
-trait Upsertions[Entity] extends UpsertOps[Entity] with Upsertions.Core[Entity] {
+trait Upsertions[Entity] extends UpsertOps[Entity] with Upsertions.Generic[Entity] {
   this: AbstractRepository[Entity, ?] & IdentifiedBy.Core[Entity, ?] =>
 }
 
 object Upsertions {
 
-  trait Generic[Entity] extends Core[Entity] {
-    this: AbstractRepository[Entity, ?] & IdentifiedBy.Core[Entity, ?] =>
-
-    final override def upsertMany(entities: List[Entity]): Eff[List[Entity]] = transact(upsertManyC(entities))
-    final override def upsert(entity: Entity): Eff[Entity]                   = transact(upsertC(entity))
-  }
-
-  trait Core[Entity] extends UpsertOps.Generic[Entity] {
+  trait Generic[Entity] extends UpsertOps.Generic[Entity] {
     this: AbstractRepository[Entity, ?] & IdentifiedBy.Core[Entity, ?] =>
 
     final override def upsertMany(entities: NonEmptyList[Entity]): Eff[List[Entity]] = transact(upsertManyC(entities))
+    final override def upsertMany(entities: List[Entity]): Eff[List[Entity]]         = transact(upsertManyC(entities))
+    final override def upsert(entity: Entity): Eff[Entity]                           = transact(upsertC(entity))
 
     final protected def upsertManyC(entities: NonEmptyList[Entity]): ConnectionIO[List[Entity]] =
       createManyWithOnConflictDoHandleC(entities)

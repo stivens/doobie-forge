@@ -7,10 +7,10 @@ import io.github.stivens.forge.Effect
 import io.github.stivens.forge.util.CollectionUtil.mapNelOrEmpty
 
 trait DeleteOps[Entity, ID] extends DeleteOps.Generic[Entity, ID] with ConnectionIOEffect {
-  final def deleteMany(ids: List[ID]): ConnectionIO[List[Entity]] =
+  def deleteMany(ids: List[ID]): ConnectionIO[List[Entity]] =
     ids.mapNelOrEmpty(deleteMany(_))
 
-  final def delete(id: ID): ConnectionIO[Option[Entity]] =
+  def delete(id: ID): ConnectionIO[Option[Entity]] =
     deleteMany(NonEmptyList.one(id)).map(_.headOption)
 }
 

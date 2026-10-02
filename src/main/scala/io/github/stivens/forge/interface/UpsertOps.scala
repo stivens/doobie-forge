@@ -8,10 +8,10 @@ import io.github.stivens.forge.util.CollectionUtil.headOrFail
 import io.github.stivens.forge.util.CollectionUtil.mapNelOrEmpty
 
 trait UpsertOps[Entity] extends UpsertOps.Generic[Entity] with ConnectionIOEffect {
-  final def upsertMany(entities: List[Entity]): ConnectionIO[List[Entity]] =
+  def upsertMany(entities: List[Entity]): ConnectionIO[List[Entity]] =
     entities.mapNelOrEmpty(upsertMany(_))
 
-  final def upsert(entity: Entity): ConnectionIO[Entity] =
+  def upsert(entity: Entity): ConnectionIO[Entity] =
     upsertMany(NonEmptyList.one(entity)).headOrFail("upsert")
 }
 

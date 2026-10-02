@@ -4,18 +4,17 @@ import cats.*
 import cats.effect.*
 import doobie.*
 import doobie.implicits.*
-import io.github.stivens.forge.EffectBinding
 import zio.Task
 import zio.interop.catz.*
 
 package object testsetup {
   trait IOEffect extends EffectBinding {
-    type Eff[A] = IO[A]
+    final type Eff[A] = IO[A]
     final protected def transact[A](io: ConnectionIO[A]): IO[A] = io.transact(transactor)
   }
 
   trait ZIOEffect extends EffectBinding {
-    type Eff[A] = Task[A]
+    final type Eff[A] = Task[A]
     final protected def transact[A](io: ConnectionIO[A]): Task[A] = io.transact(zioTransactor)
   }
 

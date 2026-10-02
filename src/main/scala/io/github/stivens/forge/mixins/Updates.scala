@@ -38,8 +38,6 @@ import io.github.stivens.forge.util.CollectionUtil.mapNelOrEmpty
   *   val updatedUser: Option[User] = UserRepository.update(1L, update).transact(transactor).unsafeRunSync()
   *   val updatedUsers: List[User] = UserRepository.updateMany(List(1L, 2L), update).transact(transactor).unsafeRunSync()
   * }}}
-  *
-  * @note This trait requires the implementing class to extend both `AbstractRepository[Entity, ?]` and `IdentifiedBy[Entity, ID]`
   */
 trait Updates[Entity, ID, UpdateType <: Product](
     protected val handleUpdate: AsFragments[UpdateType]
@@ -54,9 +52,6 @@ object Updates {
       protected val handleUpdate: AsFragments[UpdateType]
   ) extends Core[Entity, ID, UpdateType] {
     this: AbstractRepository[Entity, ?] & IdentifiedBy.Core[Entity, ID] =>
-
-    final override def updateMany(ids: List[ID], update: UpdateType): Eff[List[Entity]] = transact(updateManyC(ids, update))
-    final override def update(id: ID, update: UpdateType): Eff[Option[Entity]]          = transact(updateC(id, update))
   }
 
   trait Core[Entity, ID, UpdateType <: Product] extends UpdateOps.Generic[Entity, ID, UpdateType] {
@@ -67,6 +62,8 @@ object Updates {
     protected def frUpdateTable: Fragment = fr"UPDATE $frTableName"
 
     final override def updateMany(ids: NonEmptyList[ID], update: UpdateType): Eff[List[Entity]] = transact(updateManyC(ids, update))
+    final override def updateMany(ids: List[ID], update: UpdateType): Eff[List[Entity]]         = transact(updateManyC(ids, update))
+    final override def update(id: ID, update: UpdateType): Eff[Option[Entity]]                  = transact(updateC(id, update))
 
     final protected def updateManyC(ids: NonEmptyList[ID], update: UpdateType): ConnectionIO[List[Entity]] =
       evalUpdate(update).mapNelOrEmpty { updateFragments =>

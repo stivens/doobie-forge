@@ -501,7 +501,7 @@ import zio.interop.catz.* // "dev.zio" %% "zio-interop-cats"
 val transactor: Transactor[Task] = ...
 
 trait ZioEffect extends EffectBinding {
-  type Eff[A] = Task[A]
+  final type Eff[A] = Task[A]
   final protected def transact[A](io: ConnectionIO[A]): Task[A] = io.transact(transactor)
 }
 ```

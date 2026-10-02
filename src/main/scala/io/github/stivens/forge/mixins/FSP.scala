@@ -84,8 +84,6 @@ import io.github.stivens.forge.util.DoobieUtil.safeNumberConst0
   *   )
   *   val result: FSPResponse[Movie, MovieCursor] = MovieRepository.fsp(request).transact(transactor).unsafeRunSync()
   * }}}
-  *
-  * @note This trait requires the implementing class to extend both `AbstractView[Entity, DbEntity]` and `Filtering[Entity, FilterType]`
   */
 trait FSP[Entity, DbEntity <: Product, FilterType <: Product, Order, Cursor](
     protected val evalOrder: SortDefinition[Order] => Fragment,

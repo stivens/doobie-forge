@@ -108,7 +108,7 @@ object AbstractView {
   )(using
       Read[Entity],
       ClassTag[Entity]
-  ) extends Generic.WithIntermediateType[Entity, Entity](tableName = tableName, dbToEntity = identity)
+  ) extends AbstractView[Entity, Entity](tableName = tableName, dbToEntity = identity)
 
   object Generic {
     type WithIntermediateType[Entity, DbEntity <: Product] = AbstractView[Entity, DbEntity]

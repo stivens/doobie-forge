@@ -32,8 +32,6 @@ import io.github.stivens.forge.util.CollectionUtil.toMapBy
   *   val user: Option[User] = UserRepository.getById(1L).transact(transactor).unsafeRunSync()
   *   val users: List[User] = UserRepository.getManyByIds(List(1L, 2L, 3L)).transact(transactor).unsafeRunSync()
   * }}}
-  *
-  * @note This trait requires the implementing class to extend `AbstractView[Entity, ?]`
   */
 trait IdentifiedBy[Entity, ID](
     protected val extractId: Entity => ID,
@@ -54,9 +52,6 @@ object IdentifiedBy {
       protected val _writeId: Write[ID]
   ) extends Core[Entity, ID] {
     this: AbstractView[Entity, ?] =>
-
-    final override def getManyByIds(ids: List[ID]): Eff[List[Entity]] = transact(getManyByIdsC(ids))
-    final override def getByIdOrFail(id: ID): Eff[Entity]             = transact(getByIdOrFailC(id))
   }
 
   trait Core[Entity, ID] extends GetByIdOps.Generic[Entity, ID] {
@@ -67,8 +62,10 @@ object IdentifiedBy {
     protected given _writeId: Write[ID]
 
     final override def getManyByIds(ids: NonEmptyList[ID]): Eff[List[Entity]] = transact(getManyByIdsC(ids))
+    final override def getManyByIds(ids: List[ID]): Eff[List[Entity]]         = transact(getManyByIdsC(ids))
     final def getManyByIdsToMap(ids: List[ID]): Eff[Map[ID, Entity]]          = transact(getManyByIdsToMapC(ids))
     final override def getById(id: ID): Eff[Option[Entity]]                   = transact(getByIdC(id))
+    final override def getByIdOrFail(id: ID): Eff[Entity]                     = transact(getByIdOrFailC(id))
 
     final protected def getManyByIdsC(ids: NonEmptyList[ID]): ConnectionIO[List[Entity]] =
       runSelect(frSelectColumnsFromTable ++ whereAnd(frIdsIn(ids)))

@@ -8,13 +8,13 @@ import io.github.stivens.forge.util.CollectionUtil.headOrFail
 import io.github.stivens.forge.util.CollectionUtil.mapNelOrEmpty
 
 trait CreateOps[Entity] extends CreateOps.Generic[Entity] with ConnectionIOEffect {
-  final def createMany(entities: List[Entity]): ConnectionIO[List[Entity]] =
+  override def createMany(entities: List[Entity]): ConnectionIO[List[Entity]] =
     entities.mapNelOrEmpty(createMany(_))
 
-  final def create(entity: Entity): ConnectionIO[Entity] =
+  override def create(entity: Entity): ConnectionIO[Entity] =
     createMany(NonEmptyList.one(entity)).headOrFail("creation")
 
-  final def createManyWithOnConflictDoHandle(entities: List[Entity]): ConnectionIO[List[Entity]] =
+  override def createManyWithOnConflictDoHandle(entities: List[Entity]): ConnectionIO[List[Entity]] =
     entities.mapNelOrEmpty(createManyWithOnConflictDoHandle(_))
 }
 

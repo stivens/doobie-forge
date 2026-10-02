@@ -5,11 +5,11 @@ import doobie.*
 import scala.reflect.ClassTag
 
 /** Forge's base classes, mixins and interfaces bound to one effect type, e.g. `object RepositoryTemplate extends Forge with ZioEffect`. */
-trait Forge extends EffectBinding { forge =>
+trait Forge extends EffectBinding { self =>
 
   private[forge] trait BoundEffect extends EffectBinding {
-    final type Eff[A] = forge.Eff[A]
-    final protected def transact[A](io: ConnectionIO[A]): Eff[A] = forge.transact(io)
+    final type Eff[A] = self.Eff[A]
+    final protected def transact[A](io: ConnectionIO[A]): Eff[A] = self.transact(io)
   }
 
   abstract class Simple[Entity <: Product](
@@ -18,8 +18,7 @@ trait Forge extends EffectBinding { forge =>
       Read[Entity],
       Write[Entity],
       ClassTag[Entity]
-  ) extends AbstractRepository.Generic[Entity](tableName = tableName)
-      with BoundEffect
+  ) extends WithIntermediateType[Entity, Entity](tableName = tableName, dbMapping = AbstractRepository.identityMapping)
 
   abstract class WithIntermediateType[Entity, DbEntity <: Product](
       tableName: String,
@@ -29,7 +28,7 @@ trait Forge extends EffectBinding { forge =>
       Write[DbEntity],
       ClassTag[DbEntity],
       ClassTag[Entity]
-  ) extends AbstractRepository.Generic.WithIntermediateType[Entity, DbEntity](tableName = tableName, dbMapping = dbMapping)
+  ) extends AbstractRepository[Entity, DbEntity](tableName = tableName, dbMapping = dbMapping)
       with BoundEffect
 
   object View {
@@ -38,8 +37,7 @@ trait Forge extends EffectBinding { forge =>
     )(using
         Read[Entity],
         ClassTag[Entity]
-    ) extends AbstractView.Generic[Entity](tableName = tableName)
-        with BoundEffect
+    ) extends WithIntermediateType[Entity, Entity](tableName = tableName, dbToEntity = identity)
 
     abstract class WithIntermediateType[Entity, DbEntity <: Product](
         tableName: String,
@@ -48,7 +46,7 @@ trait Forge extends EffectBinding { forge =>
         Read[DbEntity],
         ClassTag[DbEntity],
         ClassTag[Entity]
-    ) extends AbstractView.Generic.WithIntermediateType[Entity, DbEntity](tableName = tableName, dbToEntity = dbToEntity)
+    ) extends AbstractView[Entity, DbEntity](tableName = tableName, dbToEntity = dbToEntity)
         with BoundEffect
   }
 

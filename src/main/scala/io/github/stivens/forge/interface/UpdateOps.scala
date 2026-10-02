@@ -10,7 +10,7 @@ trait UpdateOps[Entity, ID, UpdateType] extends UpdateOps.Generic[Entity, ID, Up
   def updateMany(ids: List[ID], update: UpdateType): ConnectionIO[List[Entity]] =
     ids.mapNelOrEmpty(updateMany(_, update))
 
-  final def update(id: ID, update: UpdateType): ConnectionIO[Option[Entity]] =
+  def update(id: ID, update: UpdateType): ConnectionIO[Option[Entity]] =
     updateMany(NonEmptyList.one(id), update).map(_.headOption)
 }
 

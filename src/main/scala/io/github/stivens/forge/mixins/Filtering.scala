@@ -41,8 +41,6 @@ import io.github.stivens.forge.interface.FilterOps
   *   val movies: List[Movie] = MovieRepository.getManyByFilter(filter).transact(transactor).unsafeRunSync()
   *   val count: Int = MovieRepository.countByFilter(filter).transact(transactor).unsafeRunSync()
   * }}}
-  *
-  * @note This trait requires the implementing class to extend `AbstractView[Entity, ?]`
   */
 trait Filtering[Entity, FilterType <: Product](
     protected val handleFilter: AsFragments[FilterType]

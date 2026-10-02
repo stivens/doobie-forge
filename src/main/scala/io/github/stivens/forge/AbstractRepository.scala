@@ -13,7 +13,6 @@ import scala.reflect.ClassTag
 /**
  * Abstract base class for database repository operations that provides both read and write access to database entities.
  * 
- * This class extends AbstractView to provide read operations and implements CreateOps.Generic to provide write operations.
  * It serves as the foundation for implementing full-featured repositories that can both query and create entities
  * in the database.
  * 
@@ -60,6 +59,11 @@ abstract class AbstractRepository[Entity, DbEntity <: Product](
   final override def createMany(entities: NonEmptyList[Entity]): Eff[List[Entity]] = transact(createManyC(entities))
 
   final override def createManyWithOnConflictDoHandle(entities: NonEmptyList[Entity]): Eff[List[Entity]] =
+    transact(createManyWithOnConflictDoHandleC(entities))
+
+  override def createMany(entities: List[Entity]): Eff[List[Entity]] = transact(createManyC(entities))
+  override def create(entity: Entity): Eff[Entity]                   = transact(createC(entity))
+  override def createManyWithOnConflictDoHandle(entities: List[Entity]): Eff[List[Entity]] =
     transact(createManyWithOnConflictDoHandleC(entities))
 
   final protected def createManyC(entities: NonEmptyList[Entity]): ConnectionIO[List[Entity]] = {
@@ -147,26 +151,13 @@ object AbstractRepository {
       Read[Entity],
       Write[Entity],
       ClassTag[Entity]
-  ) extends Generic.WithIntermediateType[Entity, Entity](tableName = tableName, dbMapping = identityMapping)
+  ) extends AbstractRepository[Entity, Entity](tableName = tableName, dbMapping = identityMapping)
 
   object Generic {
-    abstract class WithIntermediateType[Entity, DbEntity <: Product](
-        tableName: String,
-        dbMapping: DbMapping[Entity, DbEntity]
-    )(using
-        Read[DbEntity],
-        Write[DbEntity],
-        ClassTag[DbEntity],
-        ClassTag[Entity]
-    ) extends AbstractRepository[Entity, DbEntity](tableName = tableName, dbMapping = dbMapping) {
-      final override def createMany(entities: List[Entity]): Eff[List[Entity]] = transact(createManyC(entities))
-      final override def create(entity: Entity): Eff[Entity]                   = transact(createC(entity))
-      final override def createManyWithOnConflictDoHandle(entities: List[Entity]): Eff[List[Entity]] =
-        transact(createManyWithOnConflictDoHandleC(entities))
-    }
+    type WithIntermediateType[Entity, DbEntity <: Product] = AbstractRepository[Entity, DbEntity]
   }
 
-  private def identityMapping[Entity]: DbMapping[Entity, Entity] = new DbMapping[Entity, Entity] {
+  private[forge] def identityMapping[Entity]: DbMapping[Entity, Entity] = new DbMapping[Entity, Entity] {
     def dbToEntity(db: Entity): Entity     = db
     def entityToDb(entity: Entity): Entity = entity
   }
