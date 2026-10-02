@@ -492,15 +492,17 @@ val upsertedUser: ConnectionIO[User] = UserRepository.upsert(user)
 `Simple` and `WithIntermediateType` repositories and views return `ConnectionIO`. To return another effect (ZIO, cats-effect `IO`, ...), define an `EffectBinding`, which converts the `ConnectionIO` that forge builds internally into your effect:
 
 ```scala
-import doobie.ConnectionIO
-import io.github.gaelrenoux.tranzactio.doobie.*
+import doobie.*
+import doobie.implicits.*
 import io.github.stivens.forge.EffectBinding
-import zio.*
+import zio.Task
+import zio.interop.catz.* // "dev.zio" %% "zio-interop-cats"
+
+val transactor: Transactor[Task] = ...
 
 trait ZioEffect extends EffectBinding {
-  type Eff[A] = IO[MyDbError, A]
-  final protected def transact[A](io: ConnectionIO[A]): IO[MyDbError, A] =
-    tzio(io).provideSomeLayer(...).refineOrDie(myErrors)
+  type Eff[A] = Task[A]
+  final protected def transact[A](io: ConnectionIO[A]): Task[A] = io.transact(transactor)
 }
 ```
 
@@ -515,7 +517,7 @@ object RepositoryTemplate extends Forge with ZioEffect
 ```scala
 import doobie.*
 import doobie.implicits.*
-import zio.*
+import zio.Task
 import my.project.RepositoryTemplate
 import my.project.RepositoryTemplate.*
 
@@ -525,14 +527,14 @@ object UserRepository
     with Updates[User, Long, UpdateUser](...) {
 
   // protected helpers (selectWith, runSelect, runUpdateMany, frWhereFilter, ...) still return ConnectionIO
-  def getAllWithoutEmail: IO[MyDbError, List[User]] = transact(selectWith(fr"WHERE email IS NULL"))
+  def getAllWithoutEmail: Task[List[User]] = transact(selectWith(fr"WHERE email IS NULL"))
 
   // every public op has a protected ConnectionIO twin with a `C` suffix, for composing within one transaction
-  def rename(id: Long, name: String): IO[MyDbError, Option[User]] =
+  def rename(id: Long, name: String): Task[Option[User]] =
     transact(getByIdOrFailC(id).flatMap(user => updateC(user.id, UpdateUser(name = Some(name)))))
 }
 
-val user: IO[MyDbError, Option[User]] = UserRepository.getById(1)
+val user: Task[Option[User]] = UserRepository.getById(1)
 ```
 
 A `Forge` object provides:
@@ -543,7 +545,7 @@ A `Forge` object provides:
 
 ### Errors
 
-Errors raised by forge (`EntityNotFoundError` from `getByIdOrFail`, `IllegalStateException` from `create` / `upsert`) are raised inside the `ConnectionIO`, so they reach your `transact`. Map them there.
+Errors raised by forge (`EntityNotFoundError` from `getByIdOrFail`, `IllegalStateException` from `create` / `upsert`) are raised inside the `ConnectionIO`, so they reach your `transact` and fail the returned effect. To get a typed error channel, map them there (e.g. `.refineOrDie`).
 
 ## Forge and Dependency Injection
 
